@@ -569,3 +569,374 @@ async function finalize(
     .eq("id", planId);
   return { plan_id: planId, executor_status: status, stats };
 }
+
+// ============================================================================
+// ETAPA 2 — Catalog Placements runner (pending → Spotify → active).
+//
+// Fonte ÚNICA da transição pending → active. NÃO existe componente intermediário.
+// Reusa claim_next_catalog_placements (mesma quota diária global). Aplica:
+//   - Pré-flight circuit breaker (sem chamada Spotify).
+//   - Pré-check local (managed_playlist_tracks).
+//   - OAuth do owner (com getUserToken) — sem fallback CC para escrita privada.
+//   - Política normal de retry / skip / failed (sem dupla criação).
+//   - Write-through local após sucesso.
+// ============================================================================
+
+type CPRow = {
+  id: string;
+  catalog_track_id: string;
+  managed_playlist_id: string;
+  position: number | null;
+  attempts: number;
+  max_attempts: number;
+};
+
+type CPEnriched = CPRow & {
+  spotify_playlist_id: string;
+  owner_spotify_user_id: string | null;
+  tracks_count: number | null;
+  spotify_track_id: string;
+  spotify_uri: string | null;
+};
+
+function _trim(s: string | null | undefined, max = 480): string | null {
+  if (s == null) return null;
+  const str = String(s);
+  return str.length > max ? str.slice(0, max) : str;
+}
+
+async function runCatalogPlacements(sb: any, limit: number) {
+  const workerId = `occ-exec-cp-${crypto.randomUUID().slice(0, 8)}`;
+  const t0 = Date.now();
+
+  const { data: claimed, error: claimErr } = await sb.rpc(
+    "claim_next_catalog_placements",
+    { _worker: workerId, _limit: limit },
+  );
+  if (claimErr) return { ok: false, error: `claim_failed: ${claimErr.message}` };
+
+  const rows: CPRow[] = (claimed ?? []).map((r: any) => ({
+    id: r.id,
+    catalog_track_id: r.catalog_track_id,
+    managed_playlist_id: r.managed_playlist_id,
+    position: r.position,
+    attempts: r.attempts ?? 1,
+    max_attempts: r.max_attempts ?? 5,
+  }));
+
+  if (rows.length === 0) {
+    return { ok: true, worker_id: workerId, claimed: 0, duration_ms: Date.now() - t0 };
+  }
+
+  const trackIds = Array.from(new Set(rows.map((r) => r.catalog_track_id)));
+  const playlistIds = Array.from(new Set(rows.map((r) => r.managed_playlist_id)));
+
+  const [{ data: tracks, error: tErr }, { data: playlists, error: pErr }] = await Promise.all([
+    sb.from("catalog_tracks")
+      .select("id, spotify_track_id, spotify_uri")
+      .in("id", trackIds),
+    sb.from("managed_playlists")
+      .select("id, spotify_playlist_id, owner_spotify_user_id, tracks_count, operational_status, execution_mode")
+      .in("id", playlistIds),
+  ]);
+
+  if (tErr || pErr) {
+    await sb.from("catalog_placements")
+      .update({ status: "pending", locked_at: null, locked_by: null, lease_expires_at: null })
+      .in("id", rows.map((r) => r.id));
+    return { ok: false, error: `enrich_failed: ${tErr?.message ?? pErr?.message}` };
+  }
+
+  const tMap = new Map<string, any>();
+  for (const t of tracks ?? []) tMap.set(t.id, t);
+  const pMap = new Map<string, any>();
+  for (const p of playlists ?? []) pMap.set(p.id, p);
+
+  const enriched: CPEnriched[] = [];
+  let cntInvalid = 0;
+  let cntPlaylistBlocked = 0;
+
+  for (const r of rows) {
+    const t = tMap.get(r.catalog_track_id);
+    const p = pMap.get(r.managed_playlist_id);
+    if (!t?.spotify_track_id || !p?.spotify_playlist_id) {
+      cntInvalid++;
+      await sb.from("catalog_placements").update({
+        status: "skipped",
+        skip_reason: "enrich_missing",
+        skipped_at: new Date().toISOString(),
+        last_error_code: "enrich_missing",
+        locked_at: null, locked_by: null, lease_expires_at: null,
+      }).eq("id", r.id);
+      continue;
+    }
+    if (p.operational_status === "do_not_operate" || p.execution_mode === "MANUAL_ONLY" || p.execution_mode === "DISABLED") {
+      cntPlaylistBlocked++;
+      await sb.from("catalog_placements").update({
+        status: "skipped",
+        skip_reason: "playlist_not_operable",
+        skipped_at: new Date().toISOString(),
+        last_error_code: "playlist_not_operable",
+        locked_at: null, locked_by: null, lease_expires_at: null,
+      }).eq("id", r.id);
+      continue;
+    }
+    enriched.push({
+      ...r,
+      spotify_playlist_id: p.spotify_playlist_id,
+      owner_spotify_user_id: p.owner_spotify_user_id ?? null,
+      tracks_count: typeof p.tracks_count === "number" ? p.tracks_count : null,
+      spotify_track_id: t.spotify_track_id,
+      spotify_uri: t.spotify_uri ?? null,
+    });
+  }
+
+  // Caches por execução.
+  const tokenCache = new Map<string, string>();
+  async function tokenFor(ownerId: string | null): Promise<string> {
+    const key = ownerId ?? "__default__";
+    const cached = tokenCache.get(key);
+    if (cached) return cached;
+    if (!ownerId) {
+      // Sem owner → sem OAuth → fallback CC só funciona para playlist própria do app.
+      const tok = await getAppToken();
+      tokenCache.set(key, tok);
+      return tok;
+    }
+    const r = await getUserToken(ownerId);
+    tokenCache.set(key, r.token);
+    return r.token;
+  }
+
+  const ownerAppCache = new Map<string, string | null>();
+  async function appIdForOwner(ownerId: string | null): Promise<string | null> {
+    const key = ownerId ?? "__default__";
+    if (ownerAppCache.has(key)) return ownerAppCache.get(key) ?? null;
+    if (!ownerId) { ownerAppCache.set(key, null); return null; }
+    const { data } = await sb.from("spotify_user_tokens")
+      .select("app_id").eq("spotify_user_id", ownerId).maybeSingle();
+    const v = (data?.app_id as string | null) ?? null;
+    ownerAppCache.set(key, v);
+    return v;
+  }
+
+  type BreakerState = { open: boolean; blocked_until: string | null };
+  const breakerCache = new Map<string, BreakerState>();
+  async function breakerFor(appId: string | null): Promise<BreakerState> {
+    const key = appId ?? "__global__";
+    if (breakerCache.has(key)) return breakerCache.get(key)!;
+    if (!appId) { const v = { open: false, blocked_until: null }; breakerCache.set(key, v); return v; }
+    const { data } = await sb.from("spotify_circuit_breaker")
+      .select("status, blocked_until").eq("app_id", appId).maybeSingle();
+    const blockedFuture = !!data?.blocked_until && new Date(data.blocked_until).getTime() > Date.now();
+    const v: BreakerState = {
+      open: data?.status === "open" || blockedFuture,
+      blocked_until: data?.blocked_until ?? null,
+    };
+    breakerCache.set(key, v);
+    return v;
+  }
+
+  async function localHas(playlistId: string, trackId: string): Promise<boolean> {
+    const { data, error } = await sb.from("managed_playlist_tracks")
+      .select("id").eq("playlist_id", playlistId).eq("spotify_track_id", trackId)
+      .limit(1).maybeSingle();
+    if (error) return false;
+    return !!data;
+  }
+
+  async function persistLocal(playlistId: string, trackId: string) {
+    await sb.from("managed_playlist_tracks")
+      .upsert({
+        playlist_id: playlistId,
+        spotify_track_id: trackId,
+        added_at: new Date().toISOString(),
+      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: true })
+      .then(() => {}, () => {});
+  }
+
+  function classify(err: any): { kind: "retry" | "fatal" | "circuit" | "skip"; code: string; skipReason?: string; skipDelaySec?: number } {
+    const status: number | null = typeof err?.status === "number" ? err.status : null;
+    const name = err?.name as string | undefined;
+    const msg = String(err?.message ?? err ?? "");
+    const low = msg.toLowerCase();
+    if (name === "SpotifyCircuitOpenError") return { kind: "circuit", code: "spotify_circuit_open" };
+    if (name === "SpotifyAuthInvalidError") return { kind: "skip", code: "spotify_auth_invalid", skipReason: "owner_token_invalid", skipDelaySec: 3600 };
+    if (low.includes("nenhuma conta spotify") || low.includes("no spotify account") || low.includes("no refresh token")) {
+      return { kind: "skip", code: "owner_token_missing", skipReason: "blocked_owner_token", skipDelaySec: 6 * 3600 };
+    }
+    if (low.includes("spotify refresh ") || low.includes("invalid_grant")) {
+      return { kind: "skip", code: "spotify_refresh_failed", skipReason: "owner_token_invalid", skipDelaySec: 3600 };
+    }
+    if (status === 429) return { kind: "retry", code: "spotify_429" };
+    if (status != null && status >= 500 && status < 600) return { kind: "retry", code: `spotify_${status}` };
+    if (status === 400 && low.includes("index out of bounds")) {
+      return { kind: "skip", code: "spotify_position_oob", skipReason: "position_out_of_bounds", skipDelaySec: 300 };
+    }
+    if (status === 400) return { kind: "fatal", code: "spotify_400" };
+    if (status === 401) return { kind: "skip", code: "spotify_401", skipReason: "owner_token_invalid", skipDelaySec: 1800 };
+    if (status === 403) return { kind: "skip", code: "spotify_403", skipReason: "owner_forbidden", skipDelaySec: 3600 };
+    if (status === 404) return { kind: "skip", code: "spotify_404", skipReason: "playlist_unavailable", skipDelaySec: 6 * 3600 };
+    if (low.includes("timeout") || low.includes("network") || low.includes("fetch failed")) return { kind: "retry", code: "network_error" };
+    return { kind: "fatal", code: status ? `spotify_${status}` : "exception" };
+  }
+
+  let cntActive = 0, cntAlready = 0, cntRetry = 0, cntFailed = 0;
+  let cntCircuit = 0, cntSkipped = 0, cntSpotify = 0, cntLocalHit = 0;
+
+  async function logExec(p: CPEnriched, outcome: string, code: string | null, snapId: string | null, msg: string | null) {
+    await sb.from("catalog_placement_execution_log").insert({
+      placement_id: p.id,
+      catalog_track_id: p.catalog_track_id,
+      managed_playlist_id: p.managed_playlist_id,
+      spotify_playlist_id: p.spotify_playlist_id,
+      spotify_track_id: p.spotify_track_id,
+      position: p.position,
+      outcome,
+      error_code: code,
+      error_message: _trim(msg),
+      snapshot_id: snapId,
+    });
+  }
+
+  async function markActive(p: CPEnriched, source: string, snap: string | null, usedPos: number | null) {
+    let finalPos = usedPos;
+    if (finalPos == null && typeof p.tracks_count === "number") finalPos = p.tracks_count;
+    const upd: Record<string, unknown> = {
+      status: "active",
+      added_at: new Date().toISOString(),
+      last_error_code: null,
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    };
+    if (finalPos !== null) upd.position = finalPos;
+    await sb.from("catalog_placements").update(upd).eq("id", p.id);
+    await logExec(p, source === "local_hit" ? "already_present" : "active", null, snap, `source=${source} pos=${finalPos ?? "?"}`);
+    if (source === "local_hit") cntAlready++; else cntActive++;
+  }
+
+  async function markRetry(p: CPEnriched, code: string, msg: string | null) {
+    if (p.attempts >= p.max_attempts) {
+      await markFailed(p, code, msg ?? "max_attempts_reached");
+      return;
+    }
+    const sec = backoffSecondsForAttempt(p.attempts);
+    await sb.from("catalog_placements").update({
+      status: "retry",
+      scheduled_for: new Date(Date.now() + sec * 1000).toISOString(),
+      last_error_code: code,
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await logExec(p, "skipped", code, null, `retry in ${sec}s: ${msg ?? ""}`);
+    cntRetry++;
+  }
+
+  async function markFailed(p: CPEnriched, code: string, msg: string | null) {
+    await sb.from("catalog_placements").update({
+      status: "failed",
+      last_error_code: code,
+      removed_reason: _trim(`${code}: ${msg ?? ""}`),
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await logExec(p, "failed", code, null, msg);
+    cntFailed++;
+  }
+
+  async function markSkipped(p: CPEnriched, code: string, reason: string, delaySec: number, msg: string | null) {
+    cntSkipped++;
+    await sb.from("catalog_placements").update({
+      status: "skipped",
+      skip_reason: reason,
+      skipped_at: new Date().toISOString(),
+      scheduled_for: new Date(Date.now() + Math.max(60, delaySec) * 1000).toISOString(),
+      last_error_code: code,
+      attempts: Math.max(0, (p.attempts ?? 1) - 1),
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await logExec(p, "skipped", code, null, `reason=${reason} ${msg ?? ""}`);
+  }
+
+  async function markWaitingCircuit(p: CPEnriched, blockedUntil: string | null) {
+    cntCircuit++;
+    const resumeAt = blockedUntil ?? new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    await sb.from("catalog_placements").update({
+      status: "waiting_circuit_breaker",
+      scheduled_for: resumeAt,
+      last_error_code: "circuit_breaker_open",
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await logExec(p, "skipped", "waiting_circuit_breaker", null, `blocked_until=${blockedUntil ?? "n/a"} resume_at=${resumeAt}`);
+  }
+
+  for (const p of enriched) {
+    try {
+      // Pré-flight breaker
+      const appId = await appIdForOwner(p.owner_spotify_user_id);
+      const br = await breakerFor(appId);
+      if (br.open) { await markWaitingCircuit(p, br.blocked_until); continue; }
+
+      // Pré-check local
+      if (await localHas(p.managed_playlist_id, p.spotify_track_id)) {
+        cntLocalHit++;
+        await markActive(p, "local_hit", null, null);
+        continue;
+      }
+
+      // Spotify INSERT
+      setSpotifyCtx({
+        appId: null,
+        playlist_id: p.managed_playlist_id,
+        owner_id: p.owner_spotify_user_id,
+        spotify_user_id: p.owner_spotify_user_id,
+        function_name: "occupancy-executor:cp",
+      });
+      const token = await tokenFor(p.owner_spotify_user_id);
+
+      const uri = p.spotify_uri ?? `spotify:track:${p.spotify_track_id}`;
+      const insertOpts: { position?: number } = {};
+      if (typeof p.position === "number" && p.position >= 0) {
+        const safeMax = typeof p.tracks_count === "number" ? p.tracks_count : p.position;
+        insertOpts.position = Math.min(p.position, Math.max(0, safeMax));
+      }
+      const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
+      cntSpotify++;
+
+      await persistLocal(p.managed_playlist_id, p.spotify_track_id);
+      const usedPos = typeof insertOpts.position === "number" ? insertOpts.position : null;
+      await markActive(p, "spotify_post", addRes.snapshot_id ?? null, usedPos);
+    } catch (e: any) {
+      const cls = classify(e);
+      const msg = _trim(e?.message ?? String(e));
+      if (cls.kind === "circuit") {
+        const appId = await appIdForOwner(p.owner_spotify_user_id);
+        const br = await breakerFor(appId);
+        await markWaitingCircuit(p, br.blocked_until);
+      } else if (cls.kind === "retry") {
+        await markRetry(p, cls.code, msg);
+      } else if (cls.kind === "skip") {
+        await markSkipped(p, cls.code, cls.skipReason ?? "recoverable", cls.skipDelaySec ?? 1800, msg);
+        if ((cls.code === "spotify_401" || cls.code === "spotify_auth_invalid") && p.owner_spotify_user_id) {
+          tokenCache.delete(p.owner_spotify_user_id);
+        }
+      } else {
+        await markFailed(p, cls.code, msg);
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    worker_id: workerId,
+    claimed: rows.length,
+    invalid: cntInvalid,
+    playlist_blocked: cntPlaylistBlocked,
+    active: cntActive,
+    already_present: cntAlready,
+    retry: cntRetry,
+    failed: cntFailed,
+    skipped: cntSkipped,
+    waiting_circuit_breaker: cntCircuit,
+    local_hits: cntLocalHit,
+    spotify_calls: cntSpotify,
+    duration_ms: Date.now() - t0,
+  };
+}
