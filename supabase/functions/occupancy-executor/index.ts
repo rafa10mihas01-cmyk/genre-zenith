@@ -1019,6 +1019,7 @@ async function runCatalogPlacements(sb: any, limit: number) {
     retry: cntRetry,
     failed: cntFailed,
     skipped: cntSkipped,
+    blocked: cntBlocked,
     waiting_circuit_breaker: cntCircuit,
     local_hits: cntLocalHit,
     spotify_calls: cntSpotify,
