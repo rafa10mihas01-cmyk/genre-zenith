@@ -685,23 +685,28 @@ async function runCatalogPlacements(sb: any, limit: number) {
     const t = tMap.get(r.catalog_track_id);
     const p = pMap.get(r.managed_playlist_id);
     if (!t?.spotify_track_id || !p?.spotify_playlist_id) {
+      // BLINDAGEM: dados inconsistentes não voltam para a fila.
       cntInvalid++;
       await sb.from("catalog_placements").update({
-        status: "skipped",
+        status: "blocked",
         skip_reason: "enrich_missing",
         skipped_at: new Date().toISOString(),
         last_error_code: "enrich_missing",
+        removed_reason: "blocked: enrich_missing (catalog_track ou managed_playlist ausente)",
         locked_at: null, locked_by: null, lease_expires_at: null,
       }).eq("id", r.id);
       continue;
     }
     if (p.operational_status === "do_not_operate" || p.execution_mode === "MANUAL_ONLY" || p.execution_mode === "DISABLED") {
+      // BLINDAGEM: playlist não operável → bloqueio definitivo.
+      // Não deve voltar à fila enquanto execution_mode/operational_status não mudar.
       cntPlaylistBlocked++;
       await sb.from("catalog_placements").update({
-        status: "skipped",
+        status: "blocked",
         skip_reason: "playlist_not_operable",
         skipped_at: new Date().toISOString(),
         last_error_code: "playlist_not_operable",
+        removed_reason: `blocked: playlist_not_operable (op=${p.operational_status} mode=${p.execution_mode})`,
         locked_at: null, locked_by: null, lease_expires_at: null,
       }).eq("id", r.id);
       continue;
@@ -807,7 +812,19 @@ async function runCatalogPlacements(sb: any, limit: number) {
   }
 
   let cntActive = 0, cntAlready = 0, cntRetry = 0, cntFailed = 0;
-  let cntCircuit = 0, cntSkipped = 0, cntSpotify = 0, cntLocalHit = 0;
+  let cntCircuit = 0, cntSkipped = 0, cntBlocked = 0, cntSpotify = 0, cntLocalHit = 0;
+
+  // BLINDAGEM: códigos de erro PERMANENTES — não recuperáveis sem ação humana
+  // (regularizar OAuth do dono, alterar execution_mode, corrigir dados).
+  // Para esses códigos, cada tentativa CONTA e ao atingir max_attempts o
+  // placement é definitivamente marcado como `blocked` e sai da fila.
+  const PERMANENT_ERROR_CODES = new Set([
+    "owner_token_missing",
+    "spotify_401",
+    "spotify_auth_invalid",
+    "spotify_refresh_failed",
+    "blocked_owner_token",
+  ]);
 
   async function logExec(p: CPEnriched, outcome: string, code: string | null, snapId: string | null, msg: string | null) {
     await sb.from("catalog_placement_execution_log").insert({
@@ -866,7 +883,50 @@ async function runCatalogPlacements(sb: any, limit: number) {
     cntFailed++;
   }
 
+  async function markBlocked(p: CPEnriched, code: string, reason: string, msg: string | null) {
+    cntBlocked++;
+    await sb.from("catalog_placements").update({
+      status: "blocked",
+      skip_reason: reason,
+      skipped_at: new Date().toISOString(),
+      last_error_code: code,
+      removed_reason: _trim(`blocked after ${p.attempts}/${p.max_attempts} attempts: ${code} ${msg ?? ""}`),
+      locked_at: null, locked_by: null, lease_expires_at: null,
+    }).eq("id", p.id);
+    await logExec(p, "failed", code, null, `BLOCKED reason=${reason} attempts=${p.attempts}/${p.max_attempts} ${msg ?? ""}`);
+  }
+
   async function markSkipped(p: CPEnriched, code: string, reason: string, delaySec: number, msg: string | null) {
+    const isPermanent = PERMANENT_ERROR_CODES.has(code);
+
+    // BLINDAGEM — erros permanentes:
+    //   - INCREMENTAM attempts (em vez de decrementar como antes, o que
+    //     gerava loops infinitos: claim 'skipped' não incrementa, e o
+    //     decremento mantinha attempts congelado, fazendo a playlist
+    //     consumir cota indefinidamente, ex.: incidente 25/06 / BIA FRAZZO).
+    //   - Ao atingir max_attempts, vão para `blocked` e saem da fila.
+    if (isPermanent) {
+      const nextAttempts = (p.attempts ?? 1) + 1;
+      if (nextAttempts >= p.max_attempts) {
+        await markBlocked(p, code, reason, msg);
+        return;
+      }
+      cntSkipped++;
+      await sb.from("catalog_placements").update({
+        status: "skipped",
+        skip_reason: reason,
+        skipped_at: new Date().toISOString(),
+        scheduled_for: new Date(Date.now() + Math.max(60, delaySec) * 1000).toISOString(),
+        last_error_code: code,
+        attempts: nextAttempts,
+        locked_at: null, locked_by: null, lease_expires_at: null,
+      }).eq("id", p.id);
+      await logExec(p, "skipped", code, null, `permanent reason=${reason} attempts=${nextAttempts}/${p.max_attempts} ${msg ?? ""}`);
+      return;
+    }
+
+    // Erros transitórios mantidos no comportamento atual (não consomem
+    // tentativa — voltam a ser claimados após `delaySec`).
     cntSkipped++;
     await sb.from("catalog_placements").update({
       status: "skipped",
@@ -959,6 +1019,7 @@ async function runCatalogPlacements(sb: any, limit: number) {
     retry: cntRetry,
     failed: cntFailed,
     skipped: cntSkipped,
+    blocked: cntBlocked,
     waiting_circuit_breaker: cntCircuit,
     local_hits: cntLocalHit,
     spotify_calls: cntSpotify,
