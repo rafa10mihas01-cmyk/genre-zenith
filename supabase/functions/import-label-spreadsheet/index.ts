@@ -759,7 +759,7 @@ Deno.serve(async (req) => {
       .map((r) => ({ playlist_spotify_id: r.playlist_spotify_id, streams: r.streams }));
     const { data: evalData } = await admin.rpc("evaluate_upload_quarantine", {
       p_deal_id: dealId,
-      p_content_hash: referenceDates.length > 1 ? null : hash,
+      p_content_hash: null,
       p_rows: evalRows,
     });
     const evalResult = (evalData ?? { decision: "accept", mode: "periodic" }) as {
@@ -837,7 +837,7 @@ Deno.serve(async (req) => {
         ? "partial_window"
         : (segmentIsBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
       const segmentTotalStreams = segmentRows.reduce((acc, r) => acc + r.streams, 0);
-      const segmentContentHash = referenceDates.length > 1 ? contentHashForReference(hash, segmentReferenceDate) : hash;
+      const segmentContentHash = contentHashForReference(hash, segmentReferenceDate);
 
       const { data: uploadRow, error: upErr } = await admin
         .from("label_spreadsheet_uploads")
