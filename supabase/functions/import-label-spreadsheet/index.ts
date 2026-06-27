@@ -750,8 +750,8 @@ Deno.serve(async (req) => {
     const hash = await sha256Hex(buf);
     const fmt = detectFormat(fileName, buf);
 
-    const { rows, warnings, detected, autoFixes, segments } = parseBuf(buf, fmt);
-    if (rows.length === 0) {
+    const { rows: parsedRows, warnings, detected, autoFixes } = parseBuf(buf, fmt);
+    if (parsedRows.length === 0) {
       // 🔴 Detetive bloqueia só quando é grave de verdade
       const hasStreamsCol = detected.some((d) => d.includes("→ streams"));
       const hasPlaylistCol = detected.some((d) => d.includes("→ playlist_name"));
@@ -772,38 +772,24 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const parsedSegments = segments.length > 0
-      ? segments
-      : [{ index: 0, label: fileName, rows, warnings, detected, autoFixes } as ParsedSegment];
-    const segmentReferenceDates = new Map<number, string>();
-    const segmentReferenceDateRanges = new Map<number, string[]>();
-    const fileReferenceDate = detectExplicitReferenceDate(fileName, today);
-    const fileReferenceDateRange = detectReferenceDateRange(fileName, today);
-    const fileHasRange = hasDateRangeSignal(fileName);
-    for (const segment of parsedSegments) {
-      const sheetReferenceDate = fmt === "xlsx" ? detectExplicitReferenceDate(segment.label, today) : null;
-      const sheetReferenceDateRange = fmt === "xlsx" ? detectReferenceDateRange(segment.label, today) : [];
-      const refs = sheetReferenceDateRange.length > 0
-        ? sheetReferenceDateRange
-        : (fileReferenceDateRange.length > 0 ? fileReferenceDateRange : []);
-      const singleRef = sheetReferenceDate ?? fileReferenceDate;
-      if (refs.length > 0) {
-        segmentReferenceDateRanges.set(segment.index, refs);
-        segmentReferenceDates.set(segment.index, refs[0]);
-        continue;
-      }
-      if (!singleRef) {
-        return jr({
-          ok: false,
-          error: fmt === "xlsx" && (parsedSegments.length > 1 || fileHasRange)
-            ? `Não consegui identificar a data da aba "${segment.label}". Renomeie a aba para algo como "18 de junho" ou "2026-06-18".`
-            : "Não consegui identificar a data de referência da planilha pelo nome do arquivo. Renomeie o arquivo incluindo a data real, ex.: 2026-06-18 ou 18-06-2026.",
-        }, 200);
-      }
-      segmentReferenceDateRanges.set(segment.index, [singleRef]);
-      segmentReferenceDates.set(segment.index, singleRef);
+    // 🧱 REGRA DE NEGÓCIO OFICIAL: 1 importação = 1 entrega.
+    // Lemos TODAS as abas, mas consolidamos em um único conjunto.
+    // Se a mesma playlist aparece em várias abas (uma por dia, por exemplo),
+    // mantemos a última ocorrência — que costuma ser a leitura mais recente do arquivo.
+    // NÃO multiplicamos entregas por aba/intervalo/data interna.
+    const consolidatedMap = new Map<string, typeof parsedRows[number]>();
+    for (const r of parsedRows) {
+      const key = (r.playlist_spotify_id
+        || `${(r.playlist_name ?? "").toLowerCase()}|${(r.owner_name ?? "").toLowerCase()}`).trim();
+      if (!key) continue;
+      consolidatedMap.set(key, r);
     }
+    const rows = Array.from(consolidatedMap.values());
+
+    const today = new Date().toISOString().slice(0, 10);
+    // Carimbo único da importação. Se o nome do arquivo trouxer data explícita, usamos.
+    // Senão, "hoje". Não falhamos mais por ausência de data, não expandimos por range.
+    const referenceDate = detectExplicitReferenceDate(fileName, today) ?? today;
 
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
@@ -820,50 +806,10 @@ Deno.serve(async (req) => {
       matched.map((m) => m.matched_curator_id).filter(Boolean),
     ).size;
 
-    const deliveryUnits = parsedSegments.flatMap((segment) => {
-      const segmentRows = matched.filter((r) => (r.segment_index ?? 0) === segment.index);
-      if (segmentRows.length === 0) return [];
-
-      const rowsByExplicitDate = new Map<string, typeof segmentRows>();
-      for (const r of segmentRows) {
-        const rowRef = r.row_reference_label ? detectExplicitReferenceDate(r.row_reference_label, today) : null;
-        if (!rowRef) continue;
-        const bucket = rowsByExplicitDate.get(rowRef) ?? [];
-        bucket.push(r);
-        rowsByExplicitDate.set(rowRef, bucket);
-      }
-      if (rowsByExplicitDate.size > 0) {
-        return Array.from(rowsByExplicitDate.entries())
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([referenceDate, datedRows]) => ({
-            key: `${segment.index}:${referenceDate}`,
-            label: `${segment.label} :: ${referenceDate}`,
-            referenceDate,
-            rows: datedRows,
-          }));
-      }
-
-      const refs = segmentReferenceDateRanges.get(segment.index) ?? [];
-      return refs.map((referenceDate) => ({
-        key: `${segment.index}:${referenceDate}`,
-        label: refs.length > 1 ? `${segment.label} :: ${referenceDate}` : segment.label,
-        referenceDate,
-        rows: segmentRows,
-      }));
-    });
-    const referenceDates = Array.from(new Set(deliveryUnits.map((unit) => unit.referenceDate))).sort();
-
     const previewSummary = {
       rows: rows.length,
       total_streams: totalStreams,
-      reference_dates: referenceDates,
-      deliveries_count: deliveryUnits.length,
-      segments: deliveryUnits.map((unit) => ({
-        label: unit.label,
-        rows: unit.rows.length,
-        total_streams: unit.rows.reduce((acc, r) => acc + r.streams, 0),
-        reference_date: unit.referenceDate,
-      })),
+      reference_date: referenceDate,
       unique_isrcs: uniqueIsrcs,
       format: fmt,
       detected_columns: detected,
@@ -940,9 +886,7 @@ Deno.serve(async (req) => {
       .eq("deal_id", dealId);
     const isBaseline = (prevUploadsCount ?? 0) === 0;
 
-    // Modo final do upload. Em XLSX com várias abas, cada aba vira uma entrega
-    // própria; o hash também recebe o reference_date para não colidir o arquivo
-    // multi-dia inteiro contra dias diferentes.
+    // Modo final do upload.
     const willQuarantine = evalResult.decision === "quarantine";
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -959,114 +903,77 @@ Deno.serve(async (req) => {
       // best-effort
     }
 
-    const committedUploads: Array<{
-      uploadRow: any;
-      uploadId: string;
-      referenceDate: string;
-      segmentLabel: string;
-      isBaseline: boolean;
-      rows: Array<typeof matched[number]>;
-    }> = [];
-    let rowsInserted = 0;
-    let firstUploadRow: any = null;
+    // 🧱 1 IMPORTAÇÃO = 1 ENTREGA.
+    //    Grava UM único upload representando o estado consolidado dessa importação.
+    //    Sem expansão por aba/data/intervalo. content_hash = hash do arquivo (sem sufixo).
+    const uploadMode = willQuarantine
+      ? "partial_window"
+      : (isBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
+    const windowKind = (() => {
+      const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
+      const wk = evalResult.window_kind;
+      if (wk && allowed.has(wk)) return wk;
+      const headerSample = (detected ?? []).join(" ");
+      const detectedWk = detectWindowKind(fileName, headerSample);
+      if (detectedWk) return detectedWk;
+      return "last_24h";
+    })();
 
-    // 1) Registra um upload por entrega cronológica primeiro pra ter ids independentes.
-    //    Causa raiz corrigida: antes o commit iterava por segmento/aba e gravava só
-    //    uma reference_date por segmento; agora arquivos "18 a 21" geram 18,19,20,21.
-    for (const unit of deliveryUnits) {
-      const segmentIndex = Number(unit.key.split(":")[0]);
-      const segment = parsedSegments.find((s) => s.index === segmentIndex) ?? parsedSegments[0];
-      const segmentRows = unit.rows;
-      if (segmentRows.length === 0) continue;
-      const segmentReferenceDate = unit.referenceDate;
-      const segmentIsBaseline = isBaseline && committedUploads.length === 0;
-      const uploadMode = willQuarantine
-        ? "partial_window"
-        : (segmentIsBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
-      const segmentTotalStreams = segmentRows.reduce((acc, r) => acc + r.streams, 0);
-      const segmentContentHash = contentHashForReference(hash, segmentReferenceDate);
-
-      const { data: uploadRow, error: upErr } = await admin
-        .from("label_spreadsheet_uploads")
-        .insert({
-          deal_id: dealId,
-          song_id: songId,
-          uploaded_via: "client_portal",
-          file_path: filePath,
-          file_name: deliveryUnits.length > 1 ? `${fileName} :: ${unit.label}` : fileName,
-          content_hash: segmentContentHash,
-          rows_imported: segmentRows.length,
-          total_streams: segmentTotalStreams,
-          status: willQuarantine ? "quarantined" : "imported",
-          reference_date: segmentReferenceDate,
-          is_baseline: segmentIsBaseline && !willQuarantine,
-          upload_mode: uploadMode,
-          window_kind: (() => {
-            const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
-            const wk = evalResult.window_kind;
-            if (wk && allowed.has(wk)) return wk;
-            // Heurística por nome do arquivo / cabeçalho.
-            const headerSample = (segment.detected ?? detected ?? []).join(" ");
-            const detectedWk = detectWindowKind(`${fileName} ${segment.label}`, headerSample);
-            if (detectedWk) return detectedWk;
-            // Sem sinal explícito: assume janela diária (caso S4A mais comum).
-            return "last_24h";
-          })(),
-          quarantined_at: willQuarantine ? new Date().toISOString() : null,
-          quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
-          quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
-        })
-        .select()
-        .single();
-
-      if (upErr) return jr({ ok: false, error: upErr.message }, 200);
-      if (!firstUploadRow) firstUploadRow = uploadRow;
-      const uploadId = uploadRow.id as string;
-      committedUploads.push({
-        uploadRow,
-        uploadId,
-        referenceDate: segmentReferenceDate,
-        segmentLabel: unit.label,
-        isBaseline: segmentIsBaseline && !willQuarantine,
-        rows: segmentRows,
-      });
-
-      // 2) Insere linhas detalhadas com match
-      const detailRows = segmentRows.map((r) => ({
-        upload_id: uploadId,
+    const { data: uploadRow, error: upErr } = await admin
+      .from("label_spreadsheet_uploads")
+      .insert({
         deal_id: dealId,
         song_id: songId,
-        position: r.position_in_playlist ?? r.row_position,
-        version_name: r.version_name || null,
-        isrc: r.isrc || null,
-        playlist_name: r.playlist_name,
-        playlist_uri: r.playlist_uri,
-        playlist_url: r.playlist_url,
-        playlist_spotify_id: r.playlist_spotify_id,
-        owner_name: r.owner_name,
-        country: r.country,
-        streams: r.streams,
-        matched_playlist_id: r.matched_playlist_id,
-        matched_curator_id: r.matched_curator_id,
-        is_internal: r.is_internal,
-        raw_payload: { ...r.raw, source_sheet: r.source_sheet ?? null, reference_date: segmentReferenceDate },
-      }));
+        uploaded_via: "client_portal",
+        file_path: filePath,
+        file_name: fileName,
+        content_hash: hash,
+        rows_imported: rows.length,
+        total_streams: totalStreams,
+        status: willQuarantine ? "quarantined" : "imported",
+        reference_date: referenceDate,
+        is_baseline: isBaseline && !willQuarantine,
+        upload_mode: uploadMode,
+        window_kind: windowKind,
+        quarantined_at: willQuarantine ? new Date().toISOString() : null,
+        quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
+        quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
+      })
+      .select()
+      .single();
 
-      rowsInserted += detailRows.length;
-      // insere em chunks de 200
-      for (let i = 0; i < detailRows.length; i += 200) {
-        const chunk = detailRows.slice(i, i + 200);
-        const { error: rowsErr } = await admin
-          .from("label_spreadsheet_rows")
-          .insert(chunk);
-        if (rowsErr) console.error("rows insert error", rowsErr);
-      }
+    if (upErr) return jr({ ok: false, error: upErr.message }, 200);
+    const uploadId = uploadRow.id as string;
+
+    // 2) Insere linhas detalhadas com match (consolidadas, 1 linha por playlist)
+    const detailRows = matched.map((r) => ({
+      upload_id: uploadId,
+      deal_id: dealId,
+      song_id: songId,
+      position: r.position_in_playlist ?? r.row_position,
+      version_name: r.version_name || null,
+      isrc: r.isrc || null,
+      playlist_name: r.playlist_name,
+      playlist_uri: r.playlist_uri,
+      playlist_url: r.playlist_url,
+      playlist_spotify_id: r.playlist_spotify_id,
+      owner_name: r.owner_name,
+      country: r.country,
+      streams: r.streams,
+      matched_playlist_id: r.matched_playlist_id,
+      matched_curator_id: r.matched_curator_id,
+      is_internal: r.is_internal,
+      raw_payload: { ...r.raw, source_sheet: r.source_sheet ?? null, reference_date: referenceDate },
+    }));
+    let rowsInserted = detailRows.length;
+    for (let i = 0; i < detailRows.length; i += 200) {
+      const chunk = detailRows.slice(i, i + 200);
+      const { error: rowsErr } = await admin
+        .from("label_spreadsheet_rows")
+        .insert(chunk);
+      if (rowsErr) console.error("rows insert error", rowsErr);
     }
 
-    if (!firstUploadRow) return jr({ ok: false, error: "Nenhuma entrega válida foi criada a partir da planilha." }, 200);
-
-    const uploadRow = firstUploadRow;
-    const referenceDate = uploadRow.reference_date as string;
 
     // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
     //    snapshots, collections, total_delivered nem proofs. O cliente vê o aviso.
@@ -1080,7 +987,6 @@ Deno.serve(async (req) => {
           ? "Essa planilha parece ser de janela curta (últimos 7d). Foi arquivada e NÃO afeta os totais."
           : "Planilha em quarentena: regressão massiva detectada. Os totais anteriores foram preservados.",
         upload: uploadRow,
-        uploads: committedUploads.map((u) => u.uploadRow),
       });
     }
 
@@ -1161,78 +1067,68 @@ Deno.serve(async (req) => {
       }
 
 
-      // Snapshots: TODAS as playlists (internas + orgânicas) — para arquivos
-      // multi-dia, cada aba/dia aponta para o seu próprio upload_id/reference_date.
-      const snapshotRows = committedUploads.flatMap((entry) => {
-        const enrichedAll = entry.rows
-          .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
-          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-          .filter((x): x is { r: typeof entry.rows[number]; cpId: string } => !!x.cpId);
-        return enrichedAll.map(({ r, cpId }) => ({
-          deal_id: dealId,
-          song_id: songId,
-          playlist_id: cpId,
-          plays: r.streams,
-          captured_at: capturedAt,
+      // Snapshots: TODAS as playlists (internas + orgânicas) — 1 snapshot por playlist nessa importação.
+      const enrichedAll = allPlaylistRows
+        .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+        .filter((x): x is { r: typeof allPlaylistRows[number]; cpId: string } => !!x.cpId);
+      const snapshotRows = enrichedAll.map(({ r, cpId }) => ({
+        deal_id: dealId,
+        song_id: songId,
+        playlist_id: cpId,
+        plays: r.streams,
+        captured_at: capturedAt,
+        source: "label_spreadsheet",
+        is_initial_capture: isBaseline,
+        notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
+        ai_raw: {
           source: "label_spreadsheet",
-          is_initial_capture: entry.isBaseline,
-          notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
-          ai_raw: {
-            source: "label_spreadsheet",
-            format: fmt,
-            playlist_name: r.playlist_name,
-            playlist_spotify_id: r.playlist_spotify_id,
-            owner_name: r.owner_name,
-            country: r.country,
-            isrc: r.isrc,
-            position_in_playlist: r.position_in_playlist,
-            version_name: r.version_name,
-            matched_curator_id: r.matched_curator_id,
-            managed_playlist_id: r.matched_playlist_id,
-            is_internal: r.is_internal,
-            upload_id: entry.uploadId,
-            reference_date: entry.referenceDate,
-            source_sheet: r.source_sheet ?? null,
-          },
-        }));
-      });
+          format: fmt,
+          playlist_name: r.playlist_name,
+          playlist_spotify_id: r.playlist_spotify_id,
+          owner_name: r.owner_name,
+          country: r.country,
+          isrc: r.isrc,
+          position_in_playlist: r.position_in_playlist,
+          version_name: r.version_name,
+          matched_curator_id: r.matched_curator_id,
+          managed_playlist_id: r.matched_playlist_id,
+          is_internal: r.is_internal,
+          upload_id: uploadId,
+          reference_date: referenceDate,
+          source_sheet: r.source_sheet ?? null,
+        },
+      }));
 
       const { error: snapErr } = await admin
         .from("curator_deal_snapshots")
         .insert(snapshotRows);
       if (snapErr) console.error("snapshot insert error", snapErr);
 
-      // delivery_proofs — alimenta o painel admin (campaign hub → Prints).
-      // ⚠️ Baseline NÃO vira entrega: é apenas o ponto de partida da música
-      //   antes da campanha. Só uploads incrementais geram delivery_proofs.
-      // E só vale pras playlists INTERNAS (nossas) — orgânicas ficam só
-      // no snapshot, sem print de entrega.
-      if (songId && trackNameForProofs) {
-        const proofRows = committedUploads.flatMap((entry) => {
-          if (entry.isBaseline) return [];
-          const enrichedInternal = entry.rows
-            .filter((r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id)
-            .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-            .filter((x): x is { r: typeof entry.rows[number]; cpId: string } => !!x.cpId);
-          return enrichedInternal.map(({ r, cpId }) => ({
-            deal_id: dealId,
-            song_id: songId,
-            playlist_id: cpId,
-            spotify_playlist_id: r.playlist_spotify_id as string,
-            playlist_name: r.playlist_name,
-            track_name: trackNameForProofs,
-            plays_total: r.streams,
-            position_in_playlist: r.position_in_playlist ?? null,
-            source: "label_spreadsheet",
-            captured_at: capturedAt,
-            spotify_track_id: spotifyTrackIdForProofs,
-          }));
-        });
+      // delivery_proofs — só playlists internas e só em uploads não-baseline.
+      if (songId && trackNameForProofs && !isBaseline) {
+        const enrichedInternal = allPlaylistRows
+          .filter((r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36)
+          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+          .filter((x): x is { r: typeof allPlaylistRows[number]; cpId: string } => !!x.cpId);
+        const proofRows = enrichedInternal.map(({ r, cpId }) => ({
+          deal_id: dealId,
+          song_id: songId,
+          playlist_id: cpId,
+          spotify_playlist_id: r.playlist_spotify_id as string,
+          playlist_name: r.playlist_name,
+          track_name: trackNameForProofs,
+          plays_total: r.streams,
+          position_in_playlist: r.position_in_playlist ?? null,
+          source: "label_spreadsheet",
+          captured_at: capturedAt,
+          spotify_track_id: spotifyTrackIdForProofs,
+        }));
         if (proofRows.length > 0) {
           const { error: proofErr } = await admin.from("delivery_proofs").insert(proofRows);
           if (proofErr) console.error("delivery_proofs insert error", proofErr);
         }
       }
+
 
       // Música rastreada via planilha (Excel) NÃO deve ser coletada pelo bot S4A.
       // O bot não encontra breakdown porque a entrega vem do upload manual.
@@ -1286,30 +1182,26 @@ Deno.serve(async (req) => {
     if (campaignIdForUpdate && allPlaylistRows.length > 0) {
       try {
         const { writeCollectionBatch } = await import("../_shared/collection-writer.ts");
-        for (const entry of committedUploads) {
-          const intent: "baseline" | "periodic" = entry.isBaseline ? "baseline" : "periodic";
-          const collectionRows = entry.rows
-            .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
-            .map((r) => ({
-              spotify_playlist_id: r.playlist_spotify_id as string,
-              playlist_url: r.playlist_url
-                || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
-              playlist_name: r.playlist_name ?? null,
-              plays_7d: Math.max(0, Number(r.streams || 0)),
-              source: "label_spreadsheet",
-            }));
-          const rejected = entry.rows.length - collectionRows.length;
-          console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} ref=${entry.referenceDate} received=${entry.rows.length} valid=${collectionRows.length} rejected=${rejected}`);
-          if (collectionRows.length === 0) continue;
+        const intent: "baseline" | "periodic" = isBaseline ? "baseline" : "periodic";
+        const collectionRows = allPlaylistRows.map((r) => ({
+          spotify_playlist_id: r.playlist_spotify_id as string,
+          playlist_url: r.playlist_url
+            || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
+          playlist_name: r.playlist_name ?? null,
+          plays_7d: Math.max(0, Number(r.streams || 0)),
+          source: "label_spreadsheet",
+        }));
+        console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} ref=${referenceDate} rows=${collectionRows.length}`);
+        if (collectionRows.length > 0) {
           const result = await writeCollectionBatch(admin, {
             writer: "import-label-spreadsheet",
             campaign_id: campaignIdForUpdate,
             intent,
             rows: collectionRows,
-            upload_id: entry.uploadId,
+            upload_id: uploadId,
             default_source: "label_spreadsheet",
           });
-          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate} ref=${entry.referenceDate}`, JSON.stringify(result));
+          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate} ref=${referenceDate}`, JSON.stringify(result));
         }
       } catch (e) {
         console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
@@ -1470,7 +1362,6 @@ Deno.serve(async (req) => {
         rows_inserted: rowsInserted,
       },
       upload: uploadRow,
-      uploads: committedUploads.map((u) => u.uploadRow),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
