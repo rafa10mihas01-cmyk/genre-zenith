@@ -903,12 +903,36 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    // 🎯 Primeiro upload do deal vira BASELINE automaticamente.
+    // Resolve a campanha ANTES de classificar baseline/periodic.
+    // Regra correta: baseline é da campanha, não do deal/upload isolado.
+    // Se o histórico de uploads de um deal for limpo, uma campanha já ativa
+    // não pode voltar a tratar a próxima importação como baseline.
+    let trackNameForProofs = "";
+    let campaignIdForUpdate: string | null = null;
+    let spotifyTrackIdForProofs: string | null = null;
+    let campaignBaselineCaptured = false;
+    {
+      const { data: dealCamp } = await admin
+        .from("curator_deals")
+        .select("campaign_id, campaigns:campaign_id(id, track_name, spotify_track_id, baseline_status, baseline_captured_at)")
+        .eq("id", dealId)
+        .maybeSingle();
+      const campRow = (dealCamp as any)?.campaigns ?? null;
+      if (campRow) {
+        trackNameForProofs = campRow.track_name ?? "";
+        campaignIdForUpdate = campRow.id ?? null;
+        spotifyTrackIdForProofs = campRow.spotify_track_id ?? null;
+        campaignBaselineCaptured = campRow.baseline_status === "captured" || !!campRow.baseline_captured_at;
+      }
+    }
+
     const { count: prevUploadsCount } = await admin
       .from("label_spreadsheet_uploads")
       .select("id", { count: "exact", head: true })
       .eq("deal_id", dealId);
-    const isBaseline = (prevUploadsCount ?? 0) === 0;
+    const isBaseline = campaignIdForUpdate
+      ? !campaignBaselineCaptured
+      : (prevUploadsCount ?? 0) === 0;
 
     // Modo final do upload.
     const willQuarantine = evalResult.decision === "quarantine";
@@ -1020,25 +1044,6 @@ Deno.serve(async (req) => {
     //    a inserção quebrava inteira (playlist_id é UUID) e nada do
     //    upload aparecia no admin/cliente.
     const capturedAt = new Date().toISOString();
-
-    // Buscamos a música/campanha pra ter o track_name correto em proofs.
-    let trackNameForProofs = "";
-    let campaignIdForUpdate: string | null = null;
-    let spotifyTrackIdForProofs: string | null = null;
-    {
-      // (2026-06-19) Resolve campanha via curator_deals.campaign_id (1:N safe).
-      const { data: dealCamp } = await admin
-        .from("curator_deals")
-        .select("campaign_id, campaigns:campaign_id(id, track_name, spotify_track_id)")
-        .eq("id", dealId)
-        .maybeSingle();
-      const campRow = (dealCamp as any)?.campaigns ?? null;
-      if (campRow) {
-        trackNameForProofs = campRow.track_name ?? "";
-        campaignIdForUpdate = campRow.id ?? null;
-        spotifyTrackIdForProofs = campRow.spotify_track_id ?? null;
-      }
-    }
 
     // Pra baseline a gente precisa registrar TODAS as playlists (internas +
     // orgânicas) pra ter ponto de partida completo. Só exige spotify_id.
@@ -1175,32 +1180,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3b) Atualiza campaigns.total_delivered via Growth Engine (P1.1).
-    //     Fonte ÚNICA = fn_campaign_delivery_accumulated → curadores + eco +
-    //     orgânico, sempre delivery_accumulated (Σ deltas positivos por
-    //     playlist, ignorando uploads quarentenados). A RPC também sincroniza
-    //     curator_deals.reconciled_total_plays de TODOS os deals da campanha.
-    if (campaignIdForUpdate) {
-      const { error: recErr } = await admin.rpc(
-        "recompute_campaign_total_delivered",
-        { p_campaign_id: campaignIdForUpdate },
-      );
-      if (recErr) {
-        console.error("[total_delivered] recompute error", recErr);
-      } else {
-        const { data: row } = await admin
-          .from("campaigns")
-          .select("total_delivered")
-          .eq("id", campaignIdForUpdate)
-          .maybeSingle();
-        console.log(
-          `[total_delivered] campaign=${campaignIdForUpdate} ` +
-          `delivered=${row?.total_delivered ?? 0} via=growth_engine`,
-        );
-      }
-    }
-
-    // 3c) Espelho em campaign_playlist_collections — fonte de verdade da aba
+    // 3b) Espelho em campaign_playlist_collections — fonte de verdade da aba
     //     Monitoramento. Fase 3.A.1: escrita exclusivamente via Collection
     //     Writer (`_shared/collection-writer.ts`). Proibido INSERT/UPSERT
     //     direto nesta tabela em qualquer Edge Function.
@@ -1230,6 +1210,29 @@ Deno.serve(async (req) => {
         }
       } catch (e) {
         console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+      }
+
+      // 3c) Atualiza campaigns.total_delivered DEPOIS de gravar as collections.
+      // Antes isso rodava antes do writer, então o card "Entregue" ficava preso
+      // no número anterior logo após o upload.
+      if (campaignIdForUpdate) {
+        const { error: recErr } = await admin.rpc(
+          "recompute_campaign_total_delivered",
+          { p_campaign_id: campaignIdForUpdate },
+        );
+        if (recErr) {
+          console.error("[total_delivered] recompute error", recErr);
+        } else {
+          const { data: row } = await admin
+            .from("campaigns")
+            .select("total_delivered")
+            .eq("id", campaignIdForUpdate)
+            .maybeSingle();
+          console.log(
+            `[total_delivered] campaign=${campaignIdForUpdate} ` +
+            `delivered=${row?.total_delivered ?? 0} via=growth_engine`,
+          );
+        }
       }
 
       // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
