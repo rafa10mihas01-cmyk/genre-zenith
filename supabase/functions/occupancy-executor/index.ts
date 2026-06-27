@@ -998,9 +998,9 @@ async function runCatalogPlacements(sb: any, limit: number) {
       const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
       cntSpotify++;
 
-      await persistLocal(p.managed_playlist_id, p.spotify_track_id);
-      const usedPos = typeof insertOpts.position === "number" ? insertOpts.position : null;
-      await markActive(p, "spotify_post", addRes.snapshot_id ?? null, usedPos);
+      const requestedPos = typeof insertOpts.position === "number" ? insertOpts.position : null;
+      const persistedPos = await persistLocal(p.managed_playlist_id, p.spotify_track_id, requestedPos);
+      await markActive(p, "spotify_post", addRes.snapshot_id ?? null, persistedPos);
     } catch (e: any) {
       const cls = classify(e);
       const msg = _trim(e?.message ?? String(e));
