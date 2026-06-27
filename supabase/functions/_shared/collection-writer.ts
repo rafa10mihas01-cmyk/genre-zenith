@@ -130,6 +130,7 @@ export async function writeCollectionBatch(
       p_intent: intent,
       p_rows: rpcRows,
       p_snapshot_run_id: snapshot_run_id ?? null,
+      p_upload_id: upload_id ?? null,
     },
   );
   if (rpcErr) {
