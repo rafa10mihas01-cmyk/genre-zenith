@@ -40,9 +40,6 @@ type Preview = {
   warnings: string[];
   auto_fixes?: Record<string, number>;
   auto_fixes_total?: number;
-  deliveries_count?: number;
-  reference_dates?: string[];
-  segments?: Array<{ label: string; rows: number; total_streams: number; reference_date: string }>;
 };
 
 const FIX_LABELS: Record<string, string> = {
