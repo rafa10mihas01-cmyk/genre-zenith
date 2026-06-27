@@ -48,10 +48,14 @@ type Telemetry = {
   total_plays_7d_from_playlists: number;
   snapshots_count: number;
 };
+// Placement = linha de v_catalog_placement_live.
+// `current_position` é a única fonte de verdade da posição atual (managed_playlist_tracks).
+// `entry_position` é apenas histórico (catalog_placements.position) e não é exibido.
 type Placement = {
   id: string;
   status: string;
-  position: number | null;
+  current_position: number | null;
+  entry_position: number | null;
   added_at: string | null;
   scheduled_for: string;
   attempts: number;
