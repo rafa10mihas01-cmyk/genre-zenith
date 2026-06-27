@@ -970,10 +970,6 @@ Deno.serve(async (req) => {
     const allPlaylistRows = matched.filter(
       (r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0,
     );
-    const matchedInternal = matched.filter(
-      (r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id,
-    );
-
     if (allPlaylistRows.length > 0) {
       // 3.0) Garante que existe um curator_playlists pra cada (deal, song, spotify_id).
       //      Snapshots e proofs têm FK pra essa tabela — sem ela o insert quebra.
@@ -1144,51 +1140,52 @@ Deno.serve(async (req) => {
     //     Writer (`_shared/collection-writer.ts`). Proibido INSERT/UPSERT
     //     direto nesta tabela em qualquer Edge Function.
     if (campaignIdForUpdate && allPlaylistRows.length > 0) {
-      const intent: "baseline" | "periodic" = isBaseline ? "baseline" : "periodic";
-      const collectionRows = allPlaylistRows
-        .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
-        .map((r) => ({
-          spotify_playlist_id: r.playlist_spotify_id as string,
-          playlist_url: r.playlist_url
-            || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
-          playlist_name: r.playlist_name ?? null,
-          plays_7d: Math.max(0, Number(r.streams || 0)),
-          source: "label_spreadsheet",
-        }));
-      const rejected = allPlaylistRows.length - collectionRows.length;
-      console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} received=${allPlaylistRows.length} valid=${collectionRows.length} rejected=${rejected}`);
-      if (collectionRows.length > 0) {
-        try {
-          const { writeCollectionBatch } = await import("../_shared/collection-writer.ts");
+      try {
+        const { writeCollectionBatch } = await import("../_shared/collection-writer.ts");
+        for (const entry of committedUploads) {
+          const intent: "baseline" | "periodic" = entry.isBaseline ? "baseline" : "periodic";
+          const collectionRows = entry.rows
+            .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
+            .map((r) => ({
+              spotify_playlist_id: r.playlist_spotify_id as string,
+              playlist_url: r.playlist_url
+                || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
+              playlist_name: r.playlist_name ?? null,
+              plays_7d: Math.max(0, Number(r.streams || 0)),
+              source: "label_spreadsheet",
+            }));
+          const rejected = entry.rows.length - collectionRows.length;
+          console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} ref=${entry.referenceDate} received=${entry.rows.length} valid=${collectionRows.length} rejected=${rejected}`);
+          if (collectionRows.length === 0) continue;
           const result = await writeCollectionBatch(admin, {
             writer: "import-label-spreadsheet",
             campaign_id: campaignIdForUpdate,
             intent,
             rows: collectionRows,
-            upload_id: uploadId,
+            upload_id: entry.uploadId,
             default_source: "label_spreadsheet",
           });
-          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate}`, JSON.stringify(result));
-        } catch (e) {
-          console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate} ref=${entry.referenceDate}`, JSON.stringify(result));
         }
+      } catch (e) {
+        console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+      }
 
-        // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
-        //     real (curator_playlists.match_status='curator') no(s) deal(s) da
-        //     mesma campanha. Sem isso, a aba Curadores fica em "Matched 0"
-        //     mesmo com a planilha já refletindo entrega real.
-        try {
-          const { data: matchData, error: matchErr } = await admin.rpc("match_curator_campaign_playlists", {
-            p_campaign_id: campaignIdForUpdate,
-          });
-          if (matchErr) {
-            console.error(`[matcher] error campaign=${campaignIdForUpdate}`, matchErr.message);
-          } else {
-            console.log(`[matcher] ok campaign=${campaignIdForUpdate}`, JSON.stringify(matchData));
-          }
-        } catch (e) {
-          console.error(`[matcher] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+      // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
+      //     real (curator_playlists.match_status='curator') no(s) deal(s) da
+      //     mesma campanha. Sem isso, a aba Curadores fica em "Matched 0"
+      //     mesmo com a planilha já refletindo entrega real.
+      try {
+        const { data: matchData, error: matchErr } = await admin.rpc("match_curator_campaign_playlists", {
+          p_campaign_id: campaignIdForUpdate,
+        });
+        if (matchErr) {
+          console.error(`[matcher] error campaign=${campaignIdForUpdate}`, matchErr.message);
+        } else {
+          console.log(`[matcher] ok campaign=${campaignIdForUpdate}`, JSON.stringify(matchData));
         }
+      } catch (e) {
+        console.error(`[matcher] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
       }
     }
 
