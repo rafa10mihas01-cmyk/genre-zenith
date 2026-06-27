@@ -646,7 +646,7 @@ Deno.serve(async (req) => {
     const hash = await sha256Hex(buf);
     const fmt = detectFormat(fileName, buf);
 
-    const { rows, warnings, detected, autoFixes } = parseBuf(buf, fmt);
+    const { rows, warnings, detected, autoFixes, segments } = parseBuf(buf, fmt);
     if (rows.length === 0) {
       // 🔴 Detetive bloqueia só quando é grave de verdade
       const hasStreamsCol = detected.some((d) => d.includes("→ streams"));
