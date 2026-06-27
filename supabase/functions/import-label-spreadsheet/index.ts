@@ -712,6 +712,14 @@ Deno.serve(async (req) => {
     const previewSummary = {
       rows: rows.length,
       total_streams: totalStreams,
+      reference_dates: referenceDates,
+      deliveries_count: referenceDates.length,
+      segments: parsedSegments.map((segment) => ({
+        label: segment.label,
+        rows: segment.rows.length,
+        total_streams: segment.rows.reduce((acc, r) => acc + r.streams, 0),
+        reference_date: segmentReferenceDates.get(segment.index) ?? null,
+      })),
       unique_isrcs: uniqueIsrcs,
       format: fmt,
       detected_columns: detected,
