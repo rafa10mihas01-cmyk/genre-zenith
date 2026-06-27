@@ -329,6 +329,22 @@ function detectReferenceDateRange(label: string, fallbackIso: string): string[] 
     if (start && end) return dateRangeInclusive(start, end);
   }
 
+  // Arquivos do portal podem chegar como "Playlists Carnívoro - 18 a 21.xlsx".
+  // Sem esta regra, o range sem mês não era expandido e o fluxo acabava caindo
+  // na data do upload. Inferimos mês/ano pelo fallback, igual ao parser de dia/mês.
+  const dayOnlyRange = normalized.match(/\b(\d{1,2})\s*(?:a|ate|to|through|thru|-)\s*(\d{1,2})\b/);
+  if (dayOnlyRange) {
+    const year = Number(fallbackIso.slice(0, 4));
+    const month = Number(fallbackIso.slice(5, 7));
+    const startDay = Number(dayOnlyRange[1]);
+    const endDay = Number(dayOnlyRange[2]);
+    if (startDay <= endDay) {
+      const start = makeIsoDate(year, month, startDay, fallbackIso) ?? makeIsoDate(year - 1, month, startDay, fallbackIso);
+      const end = makeIsoDate(year, month, endDay, fallbackIso) ?? makeIsoDate(year - 1, month, endDay, fallbackIso);
+      if (start && end) return dateRangeInclusive(start, end);
+    }
+  }
+
   return [];
 }
 
