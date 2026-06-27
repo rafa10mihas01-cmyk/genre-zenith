@@ -298,6 +298,10 @@ function hasDateRangeSignal(label: string): boolean {
   return /\b\d{1,2}\s*(?:a|ate|até|-)\s*\d{1,2}\b/.test(normalized);
 }
 
+function contentHashForReference(fileHash: string, referenceDate: string): string {
+  return `${fileHash}:${referenceDate}`;
+}
+
 function parseSheetRows(sheet: XLSX.WorkSheet, segmentIndex: number, sourceSheet: string | null): Omit<ParsedSegment, "index" | "label"> {
   const warnings: string[] = [];
   const autoFixes: Record<string, number> = {
