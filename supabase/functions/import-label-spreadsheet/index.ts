@@ -171,6 +171,17 @@ type ParsedRow = {
   position_in_playlist: number | null;
   streams: number;
   raw: Record<string, unknown>;
+  segment_index?: number;
+  source_sheet?: string | null;
+};
+
+type ParsedSegment = {
+  index: number;
+  label: string;
+  rows: ParsedRow[];
+  warnings: string[];
+  detected: string[];
+  autoFixes: Record<string, number>;
 };
 
 function detectFormat(fileName: string, buf: Uint8Array): "csv" | "xlsx" {
@@ -194,10 +205,100 @@ function detectWindowKind(fileName: string, headerSample: string): "all_time" | 
   return null;
 }
 
-function parseBuf(
-  buf: Uint8Array,
-  fmt: "csv" | "xlsx",
-): { rows: ParsedRow[]; warnings: string[]; detected: string[]; autoFixes: Record<string, number> } {
+const MONTHS_PT: Record<string, number> = {
+  janeiro: 1,
+  jan: 1,
+  fevereiro: 2,
+  fev: 2,
+  marco: 3,
+  mar: 3,
+  abril: 4,
+  abr: 4,
+  maio: 5,
+  mai: 5,
+  junho: 6,
+  jun: 6,
+  julho: 7,
+  jul: 7,
+  agosto: 8,
+  ago: 8,
+  setembro: 9,
+  set: 9,
+  outubro: 10,
+  out: 10,
+  novembro: 11,
+  nov: 11,
+  dezembro: 12,
+  dez: 12,
+};
+
+function normalizeDateText(input: string): string {
+  return input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function isValidIsoDate(iso: string): boolean {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+function makeIsoDate(year: number, month: number, day: number, maxIso: string): string | null {
+  const iso = `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+  if (!isValidIsoDate(iso)) return null;
+  if (iso > maxIso) return null;
+  return iso;
+}
+
+function inferDateWithoutYear(day: number, month: number, fallbackIso: string): string | null {
+  const fallbackYear = Number(fallbackIso.slice(0, 4));
+  return makeIsoDate(fallbackYear, month, day, fallbackIso) ?? makeIsoDate(fallbackYear - 1, month, day, fallbackIso);
+}
+
+function detectExplicitReferenceDate(label: string, fallbackIso: string): string | null {
+  const stem = label.replace(/\.[a-z0-9]+$/i, "");
+  const normalized = normalizeDateText(stem);
+  const fullPatterns: Array<{ re: RegExp; y: number; m: number; d: number }> = [
+    { re: /(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})/, y: 1, m: 2, d: 3 },
+    { re: /(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})/, y: 3, m: 2, d: 1 },
+    { re: /(20\d{2})(\d{2})(\d{2})/, y: 1, m: 2, d: 3 },
+    { re: /(\d{2})(\d{2})(20\d{2})/, y: 3, m: 2, d: 1 },
+  ];
+  for (const p of fullPatterns) {
+    const m = stem.match(p.re);
+    if (!m) continue;
+    const iso = makeIsoDate(Number(m[p.y]), Number(m[p.m]), Number(m[p.d]), fallbackIso);
+    if (iso) return iso;
+  }
+
+  const monthName = normalized.match(/\b(\d{1,2})\s*(?:de\s*)?(janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez)(?:\s*(?:de\s*)?(20\d{2}))?\b/);
+  if (monthName) {
+    const day = Number(monthName[1]);
+    const month = MONTHS_PT[monthName[2]];
+    const year = monthName[3] ? Number(monthName[3]) : null;
+    const iso = year ? makeIsoDate(year, month, day, fallbackIso) : inferDateWithoutYear(day, month, fallbackIso);
+    if (iso) return iso;
+  }
+
+  // Arquivos comuns chegam como "Tabela 23_06.csv" — isso é dia/mês, não data de upload.
+  const dayMonth = stem.match(/(?:^|[^\d])(\d{1,2})[-_.](\d{1,2})(?:$|[^\d])/);
+  if (dayMonth) {
+    const iso = inferDateWithoutYear(Number(dayMonth[1]), Number(dayMonth[2]), fallbackIso);
+    if (iso) return iso;
+  }
+
+  return null;
+}
+
+function hasDateRangeSignal(label: string): boolean {
+  const normalized = normalizeDateText(label);
+  return /\b\d{1,2}\s*(?:a|ate|até|-)\s*\d{1,2}\b/.test(normalized);
+}
+
+function parseSheetRows(sheet: XLSX.WorkSheet, segmentIndex: number, sourceSheet: string | null): Omit<ParsedSegment, "index" | "label"> {
   const warnings: string[] = [];
   const autoFixes: Record<string, number> = {
     empty_rows: 0,
@@ -208,21 +309,6 @@ function parseBuf(
     negative_clamped: 0,
     invalid_position: 0,
   };
-  let wb;
-  if (fmt === "csv") {
-    let text = new TextDecoder("utf-8").decode(buf);
-    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
-    const firstLine = text.split(/\r?\n/)[0] ?? "";
-    const sep = (firstLine.match(/;/g) ?? []).length >
-        (firstLine.match(/,/g) ?? []).length
-      ? ";"
-      : ",";
-    wb = XLSX.read(text, { type: "string", FS: sep });
-  } else {
-    wb = XLSX.read(buf, { type: "array" });
-  }
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) return { rows: [], warnings: ["Planilha sem abas"], detected: [], autoFixes };
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
 
   const detected: string[] = [];
@@ -290,10 +376,78 @@ function parseBuf(
       position_in_playlist,
       streams,
       raw: r as Record<string, unknown>,
+      segment_index: segmentIndex,
+      source_sheet: sourceSheet,
     });
   }
   if (rows.length === 0) warnings.push("Nenhuma linha válida encontrada");
   return { rows, warnings, detected, autoFixes };
+}
+
+function mergeAutoFixes(target: Record<string, number>, source: Record<string, number>) {
+  for (const [k, v] of Object.entries(source)) target[k] = (target[k] ?? 0) + v;
+}
+
+function parseBuf(
+  buf: Uint8Array,
+  fmt: "csv" | "xlsx",
+): { rows: ParsedRow[]; warnings: string[]; detected: string[]; autoFixes: Record<string, number>; segments: ParsedSegment[] } {
+  let wb;
+  if (fmt === "csv") {
+    let text = new TextDecoder("utf-8").decode(buf);
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+    const firstLine = text.split(/\r?\n/)[0] ?? "";
+    const sep = (firstLine.match(/;/g) ?? []).length >
+        (firstLine.match(/,/g) ?? []).length
+      ? ";"
+      : ",";
+    wb = XLSX.read(text, { type: "string", FS: sep });
+  } else {
+    wb = XLSX.read(buf, { type: "array" });
+  }
+
+  const sheetNames = wb.SheetNames ?? [];
+  if (sheetNames.length === 0) {
+    const emptyFixes = {
+      empty_rows: 0,
+      junk_rows: 0,
+      duplicates: 0,
+      url_cleaned: 0,
+      number_normalized: 0,
+      negative_clamped: 0,
+      invalid_position: 0,
+    };
+    return { rows: [], warnings: ["Planilha sem abas"], detected: [], autoFixes: emptyFixes, segments: [] };
+  }
+
+  const segments: ParsedSegment[] = [];
+  const warnings: string[] = [];
+  const detected = new Set<string>();
+  const autoFixes: Record<string, number> = {
+    empty_rows: 0,
+    junk_rows: 0,
+    duplicates: 0,
+    url_cleaned: 0,
+    number_normalized: 0,
+    negative_clamped: 0,
+    invalid_position: 0,
+  };
+
+  sheetNames.forEach((name: string, idx: number) => {
+    const sheet = wb.Sheets[name];
+    if (!sheet) return;
+    const parsed = parseSheetRows(sheet, idx, fmt === "xlsx" ? name : null);
+    parsed.warnings.forEach((w) => warnings.push(fmt === "xlsx" ? `${name}: ${w}` : w));
+    parsed.detected.forEach((d) => detected.add(d));
+    mergeAutoFixes(autoFixes, parsed.autoFixes);
+    if (parsed.rows.length > 0) {
+      segments.push({ index: idx, label: fmt === "xlsx" ? name : "Arquivo", ...parsed });
+    }
+  });
+
+  const rows = segments.flatMap((segment) => segment.rows);
+  if (rows.length === 0) warnings.push("Nenhuma linha válida encontrada");
+  return { rows, warnings, detected: Array.from(detected), autoFixes, segments };
 }
 
 type SpreadsheetEnrichment = {
