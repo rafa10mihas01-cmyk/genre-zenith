@@ -806,50 +806,10 @@ Deno.serve(async (req) => {
       matched.map((m) => m.matched_curator_id).filter(Boolean),
     ).size;
 
-    const deliveryUnits = parsedSegments.flatMap((segment) => {
-      const segmentRows = matched.filter((r) => (r.segment_index ?? 0) === segment.index);
-      if (segmentRows.length === 0) return [];
-
-      const rowsByExplicitDate = new Map<string, typeof segmentRows>();
-      for (const r of segmentRows) {
-        const rowRef = r.row_reference_label ? detectExplicitReferenceDate(r.row_reference_label, today) : null;
-        if (!rowRef) continue;
-        const bucket = rowsByExplicitDate.get(rowRef) ?? [];
-        bucket.push(r);
-        rowsByExplicitDate.set(rowRef, bucket);
-      }
-      if (rowsByExplicitDate.size > 0) {
-        return Array.from(rowsByExplicitDate.entries())
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([referenceDate, datedRows]) => ({
-            key: `${segment.index}:${referenceDate}`,
-            label: `${segment.label} :: ${referenceDate}`,
-            referenceDate,
-            rows: datedRows,
-          }));
-      }
-
-      const refs = segmentReferenceDateRanges.get(segment.index) ?? [];
-      return refs.map((referenceDate) => ({
-        key: `${segment.index}:${referenceDate}`,
-        label: refs.length > 1 ? `${segment.label} :: ${referenceDate}` : segment.label,
-        referenceDate,
-        rows: segmentRows,
-      }));
-    });
-    const referenceDates = Array.from(new Set(deliveryUnits.map((unit) => unit.referenceDate))).sort();
-
     const previewSummary = {
       rows: rows.length,
       total_streams: totalStreams,
-      reference_dates: referenceDates,
-      deliveries_count: deliveryUnits.length,
-      segments: deliveryUnits.map((unit) => ({
-        label: unit.label,
-        rows: unit.rows.length,
-        total_streams: unit.rows.reduce((acc, r) => acc + r.streams, 0),
-        reference_date: unit.referenceDate,
-      })),
+      reference_date: referenceDate,
       unique_isrcs: uniqueIsrcs,
       format: fmt,
       detected_columns: detected,
