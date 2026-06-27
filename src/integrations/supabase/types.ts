@@ -15351,6 +15351,10 @@ export type Database = {
           result_status: string
         }[]
       }
+      fn_promote_waiting_circuit_breaker_to_pending: {
+        Args: never
+        Returns: number
+      }
       fn_reconcile_catalog_pending: {
         Args: { p_dry_run?: boolean; p_genre_id?: string; p_track_id?: string }
         Returns: {
@@ -15363,6 +15367,7 @@ export type Database = {
           track_name: string
         }[]
       }
+      fn_release_expired_placement_leases: { Args: never; Returns: number }
       fn_resolve_playlist_policy: {
         Args: { p_playlist_id: string }
         Returns: {
