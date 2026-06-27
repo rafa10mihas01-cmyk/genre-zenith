@@ -1021,37 +1021,41 @@ Deno.serve(async (req) => {
       }
 
 
-      // Snapshots: TODAS as playlists (internas + orgânicas) — pra baseline ter
-      // a foto completa e pra calcular entrega a partir de qualquer playlist.
-      const enrichedAll = allPlaylistRows
-        .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-        .filter((x): x is { r: typeof allPlaylistRows[number]; cpId: string } => !!x.cpId);
-
-      const snapshotRows = enrichedAll.map(({ r, cpId }) => ({
-        deal_id: dealId,
-        song_id: songId,
-        playlist_id: cpId,
-        plays: r.streams,
-        captured_at: capturedAt,
-        source: "label_spreadsheet",
-        is_initial_capture: isBaseline,
-        notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
-        ai_raw: {
+      // Snapshots: TODAS as playlists (internas + orgânicas) — para arquivos
+      // multi-dia, cada aba/dia aponta para o seu próprio upload_id/reference_date.
+      const snapshotRows = committedUploads.flatMap((entry) => {
+        const enrichedAll = entry.rows
+          .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
+          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+          .filter((x): x is { r: typeof entry.rows[number]; cpId: string } => !!x.cpId);
+        return enrichedAll.map(({ r, cpId }) => ({
+          deal_id: dealId,
+          song_id: songId,
+          playlist_id: cpId,
+          plays: r.streams,
+          captured_at: capturedAt,
           source: "label_spreadsheet",
-          format: fmt,
-          playlist_name: r.playlist_name,
-          playlist_spotify_id: r.playlist_spotify_id,
-          owner_name: r.owner_name,
-          country: r.country,
-          isrc: r.isrc,
-          position_in_playlist: r.position_in_playlist,
-          version_name: r.version_name,
-          matched_curator_id: r.matched_curator_id,
-          managed_playlist_id: r.matched_playlist_id,
-          is_internal: r.is_internal,
-          upload_id: uploadId,
-        },
-      }));
+          is_initial_capture: entry.isBaseline,
+          notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
+          ai_raw: {
+            source: "label_spreadsheet",
+            format: fmt,
+            playlist_name: r.playlist_name,
+            playlist_spotify_id: r.playlist_spotify_id,
+            owner_name: r.owner_name,
+            country: r.country,
+            isrc: r.isrc,
+            position_in_playlist: r.position_in_playlist,
+            version_name: r.version_name,
+            matched_curator_id: r.matched_curator_id,
+            managed_playlist_id: r.matched_playlist_id,
+            is_internal: r.is_internal,
+            upload_id: entry.uploadId,
+            reference_date: entry.referenceDate,
+            source_sheet: r.source_sheet ?? null,
+          },
+        }));
+      });
 
       const { error: snapErr } = await admin
         .from("curator_deal_snapshots")
@@ -1063,23 +1067,27 @@ Deno.serve(async (req) => {
       //   antes da campanha. Só uploads incrementais geram delivery_proofs.
       // E só vale pras playlists INTERNAS (nossas) — orgânicas ficam só
       // no snapshot, sem print de entrega.
-      if (!isBaseline && songId && trackNameForProofs) {
-        const enrichedInternal = matchedInternal
-          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-          .filter((x): x is { r: typeof matchedInternal[number]; cpId: string } => !!x.cpId);
-        const proofRows = enrichedInternal.map(({ r, cpId }) => ({
-          deal_id: dealId,
-          song_id: songId,
-          playlist_id: cpId,
-          spotify_playlist_id: r.playlist_spotify_id as string,
-          playlist_name: r.playlist_name,
-          track_name: trackNameForProofs,
-          plays_total: r.streams,
-          position_in_playlist: r.position_in_playlist ?? null,
-          source: "label_spreadsheet",
-          captured_at: capturedAt,
-          spotify_track_id: spotifyTrackIdForProofs,
-        }));
+      if (songId && trackNameForProofs) {
+        const proofRows = committedUploads.flatMap((entry) => {
+          if (entry.isBaseline) return [];
+          const enrichedInternal = entry.rows
+            .filter((r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id)
+            .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+            .filter((x): x is { r: typeof entry.rows[number]; cpId: string } => !!x.cpId);
+          return enrichedInternal.map(({ r, cpId }) => ({
+            deal_id: dealId,
+            song_id: songId,
+            playlist_id: cpId,
+            spotify_playlist_id: r.playlist_spotify_id as string,
+            playlist_name: r.playlist_name,
+            track_name: trackNameForProofs,
+            plays_total: r.streams,
+            position_in_playlist: r.position_in_playlist ?? null,
+            source: "label_spreadsheet",
+            captured_at: capturedAt,
+            spotify_track_id: spotifyTrackIdForProofs,
+          }));
+        });
         if (proofRows.length > 0) {
           const { error: proofErr } = await admin.from("delivery_proofs").insert(proofRows);
           if (proofErr) console.error("delivery_proofs insert error", proofErr);
