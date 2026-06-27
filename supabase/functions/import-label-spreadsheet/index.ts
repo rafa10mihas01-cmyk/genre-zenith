@@ -789,7 +789,6 @@ Deno.serve(async (req) => {
       segmentReferenceDates.set(segment.index, singleRef);
     }
 
-    const referenceDates = Array.from(new Set(Array.from(segmentReferenceDateRanges.values()).flat())).sort();
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
 
@@ -836,6 +835,7 @@ Deno.serve(async (req) => {
         rows: segmentRows,
       }));
     });
+    const referenceDates = Array.from(new Set(deliveryUnits.map((unit) => unit.referenceDate))).sort();
 
     const previewSummary = {
       rows: rows.length,
