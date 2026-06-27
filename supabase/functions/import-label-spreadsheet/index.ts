@@ -815,7 +815,14 @@ Deno.serve(async (req) => {
       // best-effort
     }
 
-    const committedUploads: unknown[] = [];
+    const committedUploads: Array<{
+      uploadRow: any;
+      uploadId: string;
+      referenceDate: string;
+      segmentLabel: string;
+      isBaseline: boolean;
+      rows: Array<typeof matched[number]>;
+    }> = [];
     let rowsInserted = 0;
     let firstUploadRow: any = null;
     let firstDetailRowsLength = 0;
@@ -868,8 +875,15 @@ Deno.serve(async (req) => {
 
       if (upErr) return jr({ ok: false, error: upErr.message }, 200);
       if (!firstUploadRow) firstUploadRow = uploadRow;
-      committedUploads.push(uploadRow);
       const uploadId = uploadRow.id as string;
+      committedUploads.push({
+        uploadRow,
+        uploadId,
+        referenceDate: segmentReferenceDate,
+        segmentLabel: segment.label,
+        isBaseline: segmentIsBaseline && !willQuarantine,
+        rows: segmentRows,
+      });
 
       // 2) Insere linhas detalhadas com match
       const detailRows = segmentRows.map((r) => ({
