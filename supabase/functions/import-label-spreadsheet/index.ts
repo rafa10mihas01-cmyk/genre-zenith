@@ -156,6 +156,17 @@ const HEADER_MAP: Record<string, string> = {
   "POSICAO": "position_in_playlist",
   "STREAMS": "streams",
   "PLAYS": "streams",
+  "DATE": "row_reference_label",
+  "DATA": "row_reference_label",
+  "DAY": "row_reference_label",
+  "DIA": "row_reference_label",
+  "REFERENCE DATE": "row_reference_label",
+  "REF DATE": "row_reference_label",
+  "DATA REFERENCIA": "row_reference_label",
+  "DATA DE REFERENCIA": "row_reference_label",
+  "DATA DE REFERÊNCIA": "row_reference_label",
+  "PERIODO": "row_reference_label",
+  "PERÍODO": "row_reference_label",
 };
 
 type ParsedRow = {
@@ -173,6 +184,7 @@ type ParsedRow = {
   raw: Record<string, unknown>;
   segment_index?: number;
   source_sheet?: string | null;
+  row_reference_label?: string | null;
 };
 
 type ParsedSegment = {
