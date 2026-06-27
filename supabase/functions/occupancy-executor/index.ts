@@ -775,14 +775,27 @@ async function runCatalogPlacements(sb: any, limit: number) {
     return !!data;
   }
 
-  async function persistLocal(playlistId: string, trackId: string) {
+  async function persistLocal(playlistId: string, trackId: string, position?: number | null) {
+    // Posição: usa a fornecida; se ausente, calcula como (count atual) — ou seja,
+    // append no final, equivalente ao comportamento do Spotify quando não passamos
+    // position explícito no addPlaylistTracks.
+    let pos = typeof position === "number" ? position : null;
+    if (pos === null) {
+      const { count } = await sb
+        .from("managed_playlist_tracks")
+        .select("id", { count: "exact", head: true })
+        .eq("playlist_id", playlistId);
+      pos = typeof count === "number" ? count : 0;
+    }
     await sb.from("managed_playlist_tracks")
       .upsert({
         playlist_id: playlistId,
         spotify_track_id: trackId,
+        position: pos,
         added_at: new Date().toISOString(),
-      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: true })
+      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: false })
       .then(() => {}, () => {});
+    return pos;
   }
 
   function classify(err: any): { kind: "retry" | "fatal" | "circuit" | "skip"; code: string; skipReason?: string; skipDelaySec?: number } {
