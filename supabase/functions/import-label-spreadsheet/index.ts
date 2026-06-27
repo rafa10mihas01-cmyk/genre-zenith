@@ -789,37 +789,6 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-
-    // 🔎 Auto-detecta data de referência pelo nome do arquivo.
-    // Aceita: YYYY-MM-DD, YYYY_MM_DD, DD-MM-YYYY, DD_MM_YYYY, DDMMYYYY, YYYYMMDD.
-    // Usa hoje como fallback se nada bater ou se a data parecer inválida.
-    function detectReferenceDate(name: string, fallback: string): string {
-      const stem = name.replace(/\.[a-z0-9]+$/i, "");
-      const patterns: Array<{ re: RegExp; y: number; m: number; d: number }> = [
-        { re: /(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})/, y: 1, m: 2, d: 3 },
-        { re: /(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})/, y: 3, m: 2, d: 1 },
-        { re: /(20\d{2})(\d{2})(\d{2})/, y: 1, m: 2, d: 3 },
-        { re: /(\d{2})(\d{2})(20\d{2})/, y: 3, m: 2, d: 1 },
-      ];
-      for (const p of patterns) {
-        const m = stem.match(p.re);
-        if (!m) continue;
-        const yyyy = Number(m[p.y]);
-        const mm = Number(m[p.m]);
-        const dd = Number(m[p.d]);
-        if (mm < 1 || mm > 12 || dd < 1 || dd > 31) continue;
-        const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
-        const dt = new Date(iso + "T00:00:00Z");
-        if (isNaN(dt.getTime())) continue;
-        // Não aceita datas futuras (> hoje) — usa fallback.
-        if (iso > fallback) continue;
-        return iso;
-      }
-      return fallback;
-    }
-    const referenceDate = detectReferenceDate(fileName, today);
-
     // 🎯 Primeiro upload do deal vira BASELINE automaticamente.
     const { count: prevUploadsCount } = await admin
       .from("label_spreadsheet_uploads")
