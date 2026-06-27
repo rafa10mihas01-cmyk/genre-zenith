@@ -975,7 +975,10 @@ async function runCatalogPlacements(sb: any, limit: number) {
       // Pré-check local
       if (await localHas(p.managed_playlist_id, p.spotify_track_id)) {
         cntLocalHit++;
-        await markActive(p, "local_hit", null, null);
+        const { data: row } = await sb.from("managed_playlist_tracks")
+          .select("position").eq("playlist_id", p.managed_playlist_id)
+          .eq("spotify_track_id", p.spotify_track_id).maybeSingle();
+        await markActive(p, "local_hit", null, typeof row?.position === "number" ? row.position : null);
         continue;
       }
 
