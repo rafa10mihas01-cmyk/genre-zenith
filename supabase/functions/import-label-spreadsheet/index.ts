@@ -761,12 +761,23 @@ Deno.serve(async (req) => {
       ? segments
       : [{ index: 0, label: fileName, rows, warnings, detected, autoFixes } as ParsedSegment];
     const segmentReferenceDates = new Map<number, string>();
+    const segmentReferenceDateRanges = new Map<number, string[]>();
     const fileReferenceDate = detectExplicitReferenceDate(fileName, today);
+    const fileReferenceDateRange = detectReferenceDateRange(fileName, today);
     const fileHasRange = hasDateRangeSignal(fileName);
     for (const segment of parsedSegments) {
       const sheetReferenceDate = fmt === "xlsx" ? detectExplicitReferenceDate(segment.label, today) : null;
-      const ref = sheetReferenceDate ?? fileReferenceDate;
-      if (!ref) {
+      const sheetReferenceDateRange = fmt === "xlsx" ? detectReferenceDateRange(segment.label, today) : [];
+      const refs = sheetReferenceDateRange.length > 0
+        ? sheetReferenceDateRange
+        : (fileReferenceDateRange.length > 0 ? fileReferenceDateRange : []);
+      const singleRef = sheetReferenceDate ?? fileReferenceDate;
+      if (refs.length > 0) {
+        segmentReferenceDateRanges.set(segment.index, refs);
+        segmentReferenceDates.set(segment.index, refs[0]);
+        continue;
+      }
+      if (!singleRef) {
         return jr({
           ok: false,
           error: fmt === "xlsx" && (parsedSegments.length > 1 || fileHasRange)
@@ -774,10 +785,11 @@ Deno.serve(async (req) => {
             : "Não consegui identificar a data de referência da planilha pelo nome do arquivo. Renomeie o arquivo incluindo a data real, ex.: 2026-06-18 ou 18-06-2026.",
         }, 200);
       }
-      segmentReferenceDates.set(segment.index, ref);
+      segmentReferenceDateRanges.set(segment.index, [singleRef]);
+      segmentReferenceDates.set(segment.index, singleRef);
     }
 
-    const referenceDates = Array.from(new Set(Array.from(segmentReferenceDates.values()))).sort();
+    const referenceDates = Array.from(new Set(Array.from(segmentReferenceDateRanges.values()).flat())).sort();
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
 
@@ -793,16 +805,48 @@ Deno.serve(async (req) => {
       matched.map((m) => m.matched_curator_id).filter(Boolean),
     ).size;
 
+    const deliveryUnits = parsedSegments.flatMap((segment) => {
+      const segmentRows = matched.filter((r) => (r.segment_index ?? 0) === segment.index);
+      if (segmentRows.length === 0) return [];
+
+      const rowsByExplicitDate = new Map<string, typeof segmentRows>();
+      for (const r of segmentRows) {
+        const rowRef = r.row_reference_label ? detectExplicitReferenceDate(r.row_reference_label, today) : null;
+        if (!rowRef) continue;
+        const bucket = rowsByExplicitDate.get(rowRef) ?? [];
+        bucket.push(r);
+        rowsByExplicitDate.set(rowRef, bucket);
+      }
+      if (rowsByExplicitDate.size > 0) {
+        return Array.from(rowsByExplicitDate.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([referenceDate, datedRows]) => ({
+            key: `${segment.index}:${referenceDate}`,
+            label: `${segment.label} :: ${referenceDate}`,
+            referenceDate,
+            rows: datedRows,
+          }));
+      }
+
+      const refs = segmentReferenceDateRanges.get(segment.index) ?? [];
+      return refs.map((referenceDate) => ({
+        key: `${segment.index}:${referenceDate}`,
+        label: refs.length > 1 ? `${segment.label} :: ${referenceDate}` : segment.label,
+        referenceDate,
+        rows: segmentRows,
+      }));
+    });
+
     const previewSummary = {
       rows: rows.length,
       total_streams: totalStreams,
       reference_dates: referenceDates,
-      deliveries_count: referenceDates.length,
-      segments: parsedSegments.map((segment) => ({
-        label: segment.label,
-        rows: segment.rows.length,
-        total_streams: segment.rows.reduce((acc, r) => acc + r.streams, 0),
-        reference_date: segmentReferenceDates.get(segment.index) ?? null,
+      deliveries_count: deliveryUnits.length,
+      segments: deliveryUnits.map((unit) => ({
+        label: unit.label,
+        rows: unit.rows.length,
+        total_streams: unit.rows.reduce((acc, r) => acc + r.streams, 0),
+        reference_date: unit.referenceDate,
       })),
       unique_isrcs: uniqueIsrcs,
       format: fmt,
