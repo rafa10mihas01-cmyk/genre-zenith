@@ -873,7 +873,7 @@ Deno.serve(async (req) => {
       .map((r) => ({ playlist_spotify_id: r.playlist_spotify_id, streams: r.streams }));
     const { data: evalData } = await admin.rpc("evaluate_upload_quarantine", {
       p_deal_id: dealId,
-      p_content_hash: null,
+      p_content_hash: hash,
       p_rows: evalRows,
     });
     const evalResult = (evalData ?? { decision: "accept", mode: "periodic" }) as {
