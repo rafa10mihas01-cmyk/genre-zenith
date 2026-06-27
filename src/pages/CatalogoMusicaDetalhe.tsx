@@ -188,7 +188,7 @@ function Sparkline({ points }: { points: Snapshot[] }) {
 }
 
 function MobilePlacementsRow({ p }: { p: Placement }) {
-  const pos = p.position;
+  const pos = p.current_position;
   const posCls = pos == null
     ? "text-muted-foreground/40"
     : pos === 1
@@ -260,8 +260,8 @@ function sortPlacementsGroup(items: Placement[]) {
   return [...items].sort((a, b) => {
     const statusDiff = (placementStatusOrder[a.status] ?? 9) - (placementStatusOrder[b.status] ?? 9);
     if (statusDiff !== 0) return statusDiff;
-    const posA = a.position ?? Number.MAX_SAFE_INTEGER;
-    const posB = b.position ?? Number.MAX_SAFE_INTEGER;
+    const posA = a.current_position ?? Number.MAX_SAFE_INTEGER;
+    const posB = b.current_position ?? Number.MAX_SAFE_INTEGER;
     if (posA !== posB) return posA - posB;
     return (a.managed_playlists?.name ?? "").localeCompare(b.managed_playlists?.name ?? "", "pt-BR");
   });
@@ -410,7 +410,7 @@ function DesktopPlacementsTable({ items }: { items: Placement[] }) {
                 </div>
               </td>
               <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
-              <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.position != null ? `#${p.position}` : "—"}</td>
+              <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.current_position != null ? `#${p.current_position}` : "—"}</td>
               <td className="px-4 py-3 text-muted-foreground text-xs">{p.added_at ? new Date(p.added_at).toLocaleDateString("pt-BR") : "—"}</td>
               <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.attempts}</td>
               <td className="px-4 py-3">
