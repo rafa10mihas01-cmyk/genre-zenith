@@ -48,10 +48,14 @@ type Telemetry = {
   total_plays_7d_from_playlists: number;
   snapshots_count: number;
 };
+// Placement = linha de v_catalog_placement_live.
+// `current_position` é a única fonte de verdade da posição atual (managed_playlist_tracks).
+// `entry_position` é apenas histórico (catalog_placements.position) e não é exibido.
 type Placement = {
   id: string;
   status: string;
-  position: number | null;
+  current_position: number | null;
+  entry_position: number | null;
   added_at: string | null;
   scheduled_for: string;
   attempts: number;
@@ -92,7 +96,7 @@ async function fetchDetail(id: string) {
   const [trackRes, telemetryRes, placementsRes, attributionRes, snapshotsRes, batchesRes] = await Promise.all([
     supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").eq("id", id).maybeSingle(),
     supabase.from("v_catalog_track_telemetry").select("baseline_at, baseline_plays_28d, last_captured_at, last_plays_28d, growth_abs, growth_pct, playlists_present_count, total_plays_7d_from_playlists, snapshots_count").eq("catalog_track_id", id).maybeSingle(),
-    supabase.from("catalog_placements").select("id, status, position, added_at, scheduled_for, attempts, last_error_code, managed_playlists:managed_playlist_id(name, cover_url, followers, spotify_playlist_id, archived_at, execution_mode)").eq("catalog_track_id", id).order("status", { ascending: true }),
+    supabase.from("v_catalog_placement_live").select("id, status, current_position, entry_position, added_at, scheduled_for, attempts, last_error_code, managed_playlist_id, playlist_name, playlist_cover_url, playlist_followers, spotify_playlist_id, playlist_archived_at, playlist_execution_mode").eq("catalog_track_id", id).order("status", { ascending: true }),
     supabase.from("v_catalog_track_playlist_attribution").select("spotify_playlist_id, name, owner, spotify_url, first_seen_at, last_seen_at, observations, current_position, current_plays_7d, status").eq("catalog_track_id", id).order("current_plays_7d", { ascending: false, nullsFirst: false }),
     supabase.from("song_snapshots").select("id, captured_at, total_plays_28d, processing_error").eq("catalog_track_id", id).order("captured_at", { ascending: true }).limit(60),
     supabase.from("catalog_distribution_batches").select("id, created_at, total_eligible_playlists, skipped_already_present, skipped_no_capacity, placements_created").eq("catalog_track_id", id).order("created_at", { ascending: false }).limit(50),
@@ -107,7 +111,24 @@ async function fetchDetail(id: string) {
     track: trackRes.data as Track | null,
     baseline,
     telemetry: telemetryRes.data as Telemetry | null,
-    placements: (placementsRes.data ?? []) as unknown as Placement[],
+    placements: ((placementsRes.data ?? []) as any[]).map((r) => ({
+      id: r.id,
+      status: r.status,
+      current_position: r.current_position,
+      entry_position: r.entry_position,
+      added_at: r.added_at,
+      scheduled_for: r.scheduled_for,
+      attempts: r.attempts,
+      last_error_code: r.last_error_code,
+      managed_playlists: {
+        name: r.playlist_name,
+        cover_url: r.playlist_cover_url,
+        followers: r.playlist_followers,
+        spotify_playlist_id: r.spotify_playlist_id,
+        archived_at: r.playlist_archived_at,
+        execution_mode: r.playlist_execution_mode,
+      },
+    })) as Placement[],
     attribution: (attributionRes.data ?? []) as Attribution[],
     queue: null as QueueRow | null,
     snapshots,
@@ -167,7 +188,7 @@ function Sparkline({ points }: { points: Snapshot[] }) {
 }
 
 function MobilePlacementsRow({ p }: { p: Placement }) {
-  const pos = p.position;
+  const pos = p.current_position;
   const posCls = pos == null
     ? "text-muted-foreground/40"
     : pos === 1
@@ -239,8 +260,8 @@ function sortPlacementsGroup(items: Placement[]) {
   return [...items].sort((a, b) => {
     const statusDiff = (placementStatusOrder[a.status] ?? 9) - (placementStatusOrder[b.status] ?? 9);
     if (statusDiff !== 0) return statusDiff;
-    const posA = a.position ?? Number.MAX_SAFE_INTEGER;
-    const posB = b.position ?? Number.MAX_SAFE_INTEGER;
+    const posA = a.current_position ?? Number.MAX_SAFE_INTEGER;
+    const posB = b.current_position ?? Number.MAX_SAFE_INTEGER;
     if (posA !== posB) return posA - posB;
     return (a.managed_playlists?.name ?? "").localeCompare(b.managed_playlists?.name ?? "", "pt-BR");
   });
@@ -389,7 +410,7 @@ function DesktopPlacementsTable({ items }: { items: Placement[] }) {
                 </div>
               </td>
               <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{fmt(p.managed_playlists?.followers)}</td>
-              <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.position != null ? `#${p.position}` : "—"}</td>
+              <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.current_position != null ? `#${p.current_position}` : "—"}</td>
               <td className="px-4 py-3 text-muted-foreground text-xs">{p.added_at ? new Date(p.added_at).toLocaleDateString("pt-BR") : "—"}</td>
               <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.attempts}</td>
               <td className="px-4 py-3">
