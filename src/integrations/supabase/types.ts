@@ -2583,6 +2583,13 @@ export type Database = {
             referencedRelation: "catalog_placements"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "catalog_placement_execution_log_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_placement_live"
+            referencedColumns: ["id"]
+          },
         ]
       }
       catalog_placements: {
@@ -8722,6 +8729,13 @@ export type Database = {
             referencedRelation: "catalog_placements"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "placement_origin_log_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_placement_live"
+            referencedColumns: ["id"]
+          },
         ]
       }
       placement_priority_scores: {
@@ -8758,6 +8772,13 @@ export type Database = {
             columns: ["placement_id"]
             isOneToOne: false
             referencedRelation: "catalog_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placement_priority_scores_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_placement_live"
             referencedColumns: ["id"]
           },
         ]
@@ -10328,6 +10349,13 @@ export type Database = {
             columns: ["playlist_spotify_id"]
             isOneToOne: false
             referencedRelation: "managed_playlists"
+            referencedColumns: ["spotify_playlist_id"]
+          },
+          {
+            foreignKeyName: "fk_pfs_playlist"
+            columns: ["playlist_spotify_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_placement_live"
             referencedColumns: ["spotify_playlist_id"]
           },
           {
@@ -13946,6 +13974,89 @@ export type Database = {
         }
         Relationships: []
       }
+      v_catalog_placement_live: {
+        Row: {
+          added_at: string | null
+          attempts: number | null
+          catalog_track_id: string | null
+          current_position: number | null
+          distribution_batch_id: string | null
+          entry_position: number | null
+          id: string | null
+          last_error_code: string | null
+          managed_playlist_id: string | null
+          playlist_archived_at: string | null
+          playlist_cover_url: string | null
+          playlist_execution_mode:
+            | Database["public"]["Enums"]["playlist_execution_mode"]
+            | null
+          playlist_followers: number | null
+          playlist_name: string | null
+          position_observed_at: string | null
+          scheduled_for: string | null
+          spotify_playlist_id: string | null
+          spotify_track_id: string | null
+          status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_tracks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_distribution_stats"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_performance"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_catalog_track_id_fkey"
+            columns: ["catalog_track_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_track_telemetry"
+            referencedColumns: ["catalog_track_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_distribution_batch_id_fkey"
+            columns: ["distribution_batch_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_distribution_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "managed_playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_playlist_occupancy"
+            referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_playlist_vps_assignment"
+            referencedColumns: ["managed_playlist_id"]
+          },
+        ]
+      }
       v_catalog_playlist_occupancy: {
         Row: {
           active_placements: number | null
@@ -14547,6 +14658,13 @@ export type Database = {
             columns: ["placement_id"]
             isOneToOne: false
             referencedRelation: "catalog_placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placement_priority_scores_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "v_catalog_placement_live"
             referencedColumns: ["id"]
           },
         ]
