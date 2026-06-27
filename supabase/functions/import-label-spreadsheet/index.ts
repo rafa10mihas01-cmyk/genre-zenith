@@ -265,7 +265,7 @@ const MONTHS_PT: Record<string, number> = {
 const MONTH_NAME_PATTERN = "janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez|january|february|feb|march|april|apr|may|june|july|august|aug|september|sep|october|oct|november|december|dec";
 
 function normalizeDateText(input: string): string {
-  return input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_.]+/g, " ");
 }
 
 function isValidIsoDate(iso: string): boolean {
