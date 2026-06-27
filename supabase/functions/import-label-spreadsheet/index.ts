@@ -1182,30 +1182,26 @@ Deno.serve(async (req) => {
     if (campaignIdForUpdate && allPlaylistRows.length > 0) {
       try {
         const { writeCollectionBatch } = await import("../_shared/collection-writer.ts");
-        for (const entry of committedUploads) {
-          const intent: "baseline" | "periodic" = entry.isBaseline ? "baseline" : "periodic";
-          const collectionRows = entry.rows
-            .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
-            .map((r) => ({
-              spotify_playlist_id: r.playlist_spotify_id as string,
-              playlist_url: r.playlist_url
-                || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
-              playlist_name: r.playlist_name ?? null,
-              plays_7d: Math.max(0, Number(r.streams || 0)),
-              source: "label_spreadsheet",
-            }));
-          const rejected = entry.rows.length - collectionRows.length;
-          console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} ref=${entry.referenceDate} received=${entry.rows.length} valid=${collectionRows.length} rejected=${rejected}`);
-          if (collectionRows.length === 0) continue;
+        const intent: "baseline" | "periodic" = isBaseline ? "baseline" : "periodic";
+        const collectionRows = allPlaylistRows.map((r) => ({
+          spotify_playlist_id: r.playlist_spotify_id as string,
+          playlist_url: r.playlist_url
+            || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
+          playlist_name: r.playlist_name ?? null,
+          plays_7d: Math.max(0, Number(r.streams || 0)),
+          source: "label_spreadsheet",
+        }));
+        console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} ref=${referenceDate} rows=${collectionRows.length}`);
+        if (collectionRows.length > 0) {
           const result = await writeCollectionBatch(admin, {
             writer: "import-label-spreadsheet",
             campaign_id: campaignIdForUpdate,
             intent,
             rows: collectionRows,
-            upload_id: entry.uploadId,
+            upload_id: uploadId,
             default_source: "label_spreadsheet",
           });
-          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate} ref=${entry.referenceDate}`, JSON.stringify(result));
+          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate} ref=${referenceDate}`, JSON.stringify(result));
         }
       } catch (e) {
         console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
