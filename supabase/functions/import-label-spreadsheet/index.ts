@@ -750,8 +750,8 @@ Deno.serve(async (req) => {
     const hash = await sha256Hex(buf);
     const fmt = detectFormat(fileName, buf);
 
-    const { rows, warnings, detected, autoFixes, segments } = parseBuf(buf, fmt);
-    if (rows.length === 0) {
+    const { rows: parsedRows, warnings, detected, autoFixes } = parseBuf(buf, fmt);
+    if (parsedRows.length === 0) {
       // 🔴 Detetive bloqueia só quando é grave de verdade
       const hasStreamsCol = detected.some((d) => d.includes("→ streams"));
       const hasPlaylistCol = detected.some((d) => d.includes("→ playlist_name"));
@@ -772,38 +772,24 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const parsedSegments = segments.length > 0
-      ? segments
-      : [{ index: 0, label: fileName, rows, warnings, detected, autoFixes } as ParsedSegment];
-    const segmentReferenceDates = new Map<number, string>();
-    const segmentReferenceDateRanges = new Map<number, string[]>();
-    const fileReferenceDate = detectExplicitReferenceDate(fileName, today);
-    const fileReferenceDateRange = detectReferenceDateRange(fileName, today);
-    const fileHasRange = hasDateRangeSignal(fileName);
-    for (const segment of parsedSegments) {
-      const sheetReferenceDate = fmt === "xlsx" ? detectExplicitReferenceDate(segment.label, today) : null;
-      const sheetReferenceDateRange = fmt === "xlsx" ? detectReferenceDateRange(segment.label, today) : [];
-      const refs = sheetReferenceDateRange.length > 0
-        ? sheetReferenceDateRange
-        : (fileReferenceDateRange.length > 0 ? fileReferenceDateRange : []);
-      const singleRef = sheetReferenceDate ?? fileReferenceDate;
-      if (refs.length > 0) {
-        segmentReferenceDateRanges.set(segment.index, refs);
-        segmentReferenceDates.set(segment.index, refs[0]);
-        continue;
-      }
-      if (!singleRef) {
-        return jr({
-          ok: false,
-          error: fmt === "xlsx" && (parsedSegments.length > 1 || fileHasRange)
-            ? `Não consegui identificar a data da aba "${segment.label}". Renomeie a aba para algo como "18 de junho" ou "2026-06-18".`
-            : "Não consegui identificar a data de referência da planilha pelo nome do arquivo. Renomeie o arquivo incluindo a data real, ex.: 2026-06-18 ou 18-06-2026.",
-        }, 200);
-      }
-      segmentReferenceDateRanges.set(segment.index, [singleRef]);
-      segmentReferenceDates.set(segment.index, singleRef);
+    // 🧱 REGRA DE NEGÓCIO OFICIAL: 1 importação = 1 entrega.
+    // Lemos TODAS as abas, mas consolidamos em um único conjunto.
+    // Se a mesma playlist aparece em várias abas (uma por dia, por exemplo),
+    // mantemos a última ocorrência — que costuma ser a leitura mais recente do arquivo.
+    // NÃO multiplicamos entregas por aba/intervalo/data interna.
+    const consolidatedMap = new Map<string, typeof parsedRows[number]>();
+    for (const r of parsedRows) {
+      const key = (r.playlist_spotify_id
+        || `${(r.playlist_name ?? "").toLowerCase()}|${(r.owner_name ?? "").toLowerCase()}`).trim();
+      if (!key) continue;
+      consolidatedMap.set(key, r);
     }
+    const rows = Array.from(consolidatedMap.values());
+
+    const today = new Date().toISOString().slice(0, 10);
+    // Carimbo único da importação. Se o nome do arquivo trouxer data explícita, usamos.
+    // Senão, "hoje". Não falhamos mais por ausência de data, não expandimos por range.
+    const referenceDate = detectExplicitReferenceDate(fileName, today) ?? today;
 
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
