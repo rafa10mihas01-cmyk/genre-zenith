@@ -796,11 +796,10 @@ Deno.serve(async (req) => {
       .eq("deal_id", dealId);
     const isBaseline = (prevUploadsCount ?? 0) === 0;
 
-    // Modo final do upload
+    // Modo final do upload. Em XLSX com várias abas, cada aba vira uma entrega
+    // própria; o hash também recebe o reference_date para não colidir o arquivo
+    // multi-dia inteiro contra dias diferentes.
     const willQuarantine = evalResult.decision === "quarantine";
-    const uploadMode = willQuarantine
-      ? "partial_window"
-      : (isBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `${dealId}/${Date.now()}-${safeName}`;
@@ -815,6 +814,11 @@ Deno.serve(async (req) => {
     } catch (_) {
       // best-effort
     }
+
+    const committedUploads: unknown[] = [];
+    let rowsInserted = 0;
+    let firstUploadRow: any = null;
+    let firstDetailRowsLength = 0;
 
     // 1) Registra upload primeiro pra ter o id
     const { data: uploadRow, error: upErr } = await admin
