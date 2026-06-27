@@ -775,27 +775,20 @@ async function runCatalogPlacements(sb: any, limit: number) {
     return !!data;
   }
 
-  async function persistLocal(playlistId: string, trackId: string, position?: number | null) {
-    // Posição: usa a fornecida; se ausente, calcula como (count atual) — ou seja,
-    // append no final, equivalente ao comportamento do Spotify quando não passamos
-    // position explícito no addPlaylistTracks.
-    let pos = typeof position === "number" ? position : null;
-    if (pos === null) {
-      const { count } = await sb
-        .from("managed_playlist_tracks")
-        .select("id", { count: "exact", head: true })
-        .eq("playlist_id", playlistId);
-      pos = typeof count === "number" ? count : 0;
-    }
+  async function persistLocal(playlistId: string, trackId: string, _position?: number | null) {
+    // IMPORTANTE: Não gravar mais posição estimada. O executor apenas registra a
+    // existência local da track (para deduplicação rápida). A coluna `position`
+    // permanece NULL e só é preenchida pelo `sync-managed-playlist-tracks`, que
+    // confirma a posição real no Spotify. (Decisão de 27/06 — eliminar divergência
+    // observada entre posição estimada e posição real.)
     await sb.from("managed_playlist_tracks")
       .upsert({
         playlist_id: playlistId,
         spotify_track_id: trackId,
-        position: pos,
         added_at: new Date().toISOString(),
-      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: false })
+      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: true })
       .then(() => {}, () => {});
-    return pos;
+    return null;
   }
 
   function classify(err: any): { kind: "retry" | "fatal" | "circuit" | "skip"; code: string; skipReason?: string; skipDelaySec?: number } {
@@ -1001,9 +994,9 @@ async function runCatalogPlacements(sb: any, limit: number) {
       const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
       cntSpotify++;
 
-      const requestedPos = typeof insertOpts.position === "number" ? insertOpts.position : null;
-      const persistedPos = await persistLocal(p.managed_playlist_id, p.spotify_track_id, requestedPos);
-      await markActive(p, "spotify_post", addRes.snapshot_id ?? null, persistedPos);
+      await persistLocal(p.managed_playlist_id, p.spotify_track_id);
+      // position fica NULL em catalog_placements; será preenchida pelo sync subsequente
+      await markActive(p, "spotify_post", addRes.snapshot_id ?? null, null);
     } catch (e: any) {
       const cls = classify(e);
       const msg = _trim(e?.message ?? String(e));
