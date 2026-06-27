@@ -668,6 +668,28 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
+    const today = new Date().toISOString().slice(0, 10);
+    const parsedSegments = segments.length > 0
+      ? segments
+      : [{ index: 0, label: fileName, rows, warnings, detected, autoFixes } as ParsedSegment];
+    const segmentReferenceDates = new Map<number, string>();
+    const fileReferenceDate = detectExplicitReferenceDate(fileName, today);
+    const fileHasRange = hasDateRangeSignal(fileName);
+    for (const segment of parsedSegments) {
+      const sheetReferenceDate = fmt === "xlsx" ? detectExplicitReferenceDate(segment.label, today) : null;
+      const ref = sheetReferenceDate ?? fileReferenceDate;
+      if (!ref) {
+        return jr({
+          ok: false,
+          error: fmt === "xlsx" && (parsedSegments.length > 1 || fileHasRange)
+            ? `Não consegui identificar a data da aba "${segment.label}". Renomeie a aba para algo como "18 de junho" ou "2026-06-18".`
+            : "Não consegui identificar a data de referência da planilha pelo nome do arquivo. Renomeie o arquivo incluindo a data real, ex.: 2026-06-18 ou 18-06-2026.",
+        }, 200);
+      }
+      segmentReferenceDates.set(segment.index, ref);
+    }
+
+    const referenceDates = Array.from(new Set(Array.from(segmentReferenceDates.values()))).sort();
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
 
