@@ -825,7 +825,6 @@ Deno.serve(async (req) => {
     }> = [];
     let rowsInserted = 0;
     let firstUploadRow: any = null;
-    let firstDetailRowsLength = 0;
 
     // 1) Registra um upload por dia/aba primeiro pra ter ids independentes
     for (const segment of parsedSegments) {
@@ -906,7 +905,6 @@ Deno.serve(async (req) => {
         raw_payload: { ...r.raw, source_sheet: r.source_sheet ?? null, reference_date: segmentReferenceDate },
       }));
 
-      if (committedUploads.length === 1) firstDetailRowsLength = detailRows.length;
       rowsInserted += detailRows.length;
       // insere em chunks de 200
       for (let i = 0; i < detailRows.length; i += 200) {
@@ -921,7 +919,6 @@ Deno.serve(async (req) => {
     if (!firstUploadRow) return jr({ ok: false, error: "Nenhuma entrega válida foi criada a partir da planilha." }, 200);
 
     const uploadRow = firstUploadRow;
-    const uploadId = uploadRow.id as string;
     const referenceDate = uploadRow.reference_date as string;
 
     // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
