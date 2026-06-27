@@ -954,12 +954,15 @@ Deno.serve(async (req) => {
     let rowsInserted = 0;
     let firstUploadRow: any = null;
 
-    // 1) Registra um upload por dia/aba primeiro pra ter ids independentes
-    for (const segment of parsedSegments) {
-      const segmentRows = matched.filter((r) => (r.segment_index ?? 0) === segment.index);
+    // 1) Registra um upload por entrega cronológica primeiro pra ter ids independentes.
+    //    Causa raiz corrigida: antes o commit iterava por segmento/aba e gravava só
+    //    uma reference_date por segmento; agora arquivos "18 a 21" geram 18,19,20,21.
+    for (const unit of deliveryUnits) {
+      const segmentIndex = Number(unit.key.split(":")[0]);
+      const segment = parsedSegments.find((s) => s.index === segmentIndex) ?? parsedSegments[0];
+      const segmentRows = unit.rows;
       if (segmentRows.length === 0) continue;
-      const segmentReferenceDate = segmentReferenceDates.get(segment.index);
-      if (!segmentReferenceDate) continue;
+      const segmentReferenceDate = unit.referenceDate;
       const segmentIsBaseline = isBaseline && committedUploads.length === 0;
       const uploadMode = willQuarantine
         ? "partial_window"
@@ -974,7 +977,7 @@ Deno.serve(async (req) => {
           song_id: songId,
           uploaded_via: "client_portal",
           file_path: filePath,
-          file_name: parsedSegments.length > 1 ? `${fileName} :: ${segment.label}` : fileName,
+          file_name: deliveryUnits.length > 1 ? `${fileName} :: ${unit.label}` : fileName,
           content_hash: segmentContentHash,
           rows_imported: segmentRows.length,
           total_streams: segmentTotalStreams,
@@ -1007,7 +1010,7 @@ Deno.serve(async (req) => {
         uploadRow,
         uploadId,
         referenceDate: segmentReferenceDate,
-        segmentLabel: segment.label,
+        segmentLabel: unit.label,
         isBaseline: segmentIsBaseline && !willQuarantine,
         rows: segmentRows,
       });
