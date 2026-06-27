@@ -987,7 +987,6 @@ Deno.serve(async (req) => {
           ? "Essa planilha parece ser de janela curta (últimos 7d). Foi arquivada e NÃO afeta os totais."
           : "Planilha em quarentena: regressão massiva detectada. Os totais anteriores foram preservados.",
         upload: uploadRow,
-        uploads: committedUploads.map((u) => u.uploadRow),
       });
     }
 
