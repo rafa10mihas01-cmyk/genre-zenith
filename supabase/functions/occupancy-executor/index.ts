@@ -775,14 +775,27 @@ async function runCatalogPlacements(sb: any, limit: number) {
     return !!data;
   }
 
-  async function persistLocal(playlistId: string, trackId: string) {
+  async function persistLocal(playlistId: string, trackId: string, position?: number | null) {
+    // Posição: usa a fornecida; se ausente, calcula como (count atual) — ou seja,
+    // append no final, equivalente ao comportamento do Spotify quando não passamos
+    // position explícito no addPlaylistTracks.
+    let pos = typeof position === "number" ? position : null;
+    if (pos === null) {
+      const { count } = await sb
+        .from("managed_playlist_tracks")
+        .select("id", { count: "exact", head: true })
+        .eq("playlist_id", playlistId);
+      pos = typeof count === "number" ? count : 0;
+    }
     await sb.from("managed_playlist_tracks")
       .upsert({
         playlist_id: playlistId,
         spotify_track_id: trackId,
+        position: pos,
         added_at: new Date().toISOString(),
-      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: true })
+      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: false })
       .then(() => {}, () => {});
+    return pos;
   }
 
   function classify(err: any): { kind: "retry" | "fatal" | "circuit" | "skip"; code: string; skipReason?: string; skipDelaySec?: number } {
@@ -962,7 +975,10 @@ async function runCatalogPlacements(sb: any, limit: number) {
       // Pré-check local
       if (await localHas(p.managed_playlist_id, p.spotify_track_id)) {
         cntLocalHit++;
-        await markActive(p, "local_hit", null, null);
+        const { data: row } = await sb.from("managed_playlist_tracks")
+          .select("position").eq("playlist_id", p.managed_playlist_id)
+          .eq("spotify_track_id", p.spotify_track_id).maybeSingle();
+        await markActive(p, "local_hit", null, typeof row?.position === "number" ? row.position : null);
         continue;
       }
 
@@ -985,9 +1001,9 @@ async function runCatalogPlacements(sb: any, limit: number) {
       const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
       cntSpotify++;
 
-      await persistLocal(p.managed_playlist_id, p.spotify_track_id);
-      const usedPos = typeof insertOpts.position === "number" ? insertOpts.position : null;
-      await markActive(p, "spotify_post", addRes.snapshot_id ?? null, usedPos);
+      const requestedPos = typeof insertOpts.position === "number" ? insertOpts.position : null;
+      const persistedPos = await persistLocal(p.managed_playlist_id, p.spotify_track_id, requestedPos);
+      await markActive(p, "spotify_post", addRes.snapshot_id ?? null, persistedPos);
     } catch (e: any) {
       const cls = classify(e);
       const msg = _trim(e?.message ?? String(e));
