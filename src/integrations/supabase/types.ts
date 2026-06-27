@@ -16100,6 +16100,10 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: Json
       }
+      sync_deal_campaign_baseline: {
+        Args: { p_deal_id: string }
+        Returns: Json
+      }
       sync_tier_cold_ids: {
         Args: {
           p_cutoff_alloc: string
