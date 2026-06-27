@@ -330,45 +330,25 @@ export function SpreadsheetUploadCard({
                   </div>
                 )}
               </div>
-              {(() => {
-                const deliveries = preview.deliveries_count ?? 1;
-                const perDay = deliveries > 1 && preview.segments?.length
-                  ? Math.round(preview.rows / deliveries)
-                  : preview.rows;
-                const internalPerDay = deliveries > 1 ? Math.round((preview.internal_count ?? 0) / deliveries) : (preview.internal_count ?? 0);
-                const organicPerDay = deliveries > 1
-                  ? Math.round(((preview.organic_count ?? preview.rows) / deliveries))
-                  : (preview.organic_count ?? preview.rows);
-                return (
-                  <>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div>
-                        <div className="text-[11px] text-muted-foreground">Playlists{deliveries > 1 ? " (por dia)" : ""}</div>
-                        <div className="text-xl font-semibold text-foreground">{perDay}</div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] text-muted-foreground">Streams{deliveries > 1 ? " (total)" : ""}</div>
-                        <div className="text-xl font-semibold text-foreground">{fmtNumber(preview.total_streams)}</div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] text-muted-foreground">Nossas{deliveries > 1 ? " (por dia)" : ""}</div>
-                        <div className="text-xl font-semibold text-primary">{internalPerDay}</div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] text-muted-foreground">Orgânicas{deliveries > 1 ? " (por dia)" : ""}</div>
-                        <div className="text-xl font-semibold text-foreground">{organicPerDay}</div>
-                      </div>
-                    </div>
-                    {deliveries > 1 && (
-                      <div className="text-[11px] text-muted-foreground bg-muted/30 border border-border/60 rounded-md px-2 py-1.5">
-                        <span className="font-medium text-foreground">{deliveries} entregas</span> serão criadas
-                        {preview.reference_dates?.length ? ` (${preview.reference_dates.join(", ")})` : ""}.
-                        Total de linhas no arquivo: {preview.rows.toLocaleString("pt-BR")}.
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Playlists</div>
+                  <div className="text-xl font-semibold text-foreground">{preview.rows}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Streams</div>
+                  <div className="text-xl font-semibold text-foreground">{fmtNumber(preview.total_streams)}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Nossas</div>
+                  <div className="text-xl font-semibold text-primary">{preview.internal_count ?? 0}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-muted-foreground">Orgânicas</div>
+                  <div className="text-xl font-semibold text-foreground">{preview.organic_count ?? preview.rows}</div>
+                </div>
+              </div>
+
               {(preview.playlists_recognized || preview.curators_recognized || preview.best_position) && (
                 <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
                   {preview.playlists_recognized ? <span>{preview.playlists_recognized} playlists reconhecidas</span> : null}
