@@ -243,18 +243,14 @@ const MONTHS_PT: Record<string, number> = {
   dezembro: 12,
   dez: 12,
   january: 1,
-  jan: 1,
   february: 2,
   feb: 2,
   march: 3,
-  mar: 3,
   april: 4,
   apr: 4,
   may: 5,
   june: 6,
-  jun: 6,
   july: 7,
-  jul: 7,
   august: 8,
   aug: 8,
   september: 9,
@@ -262,10 +258,11 @@ const MONTHS_PT: Record<string, number> = {
   october: 10,
   oct: 10,
   november: 11,
-  nov: 11,
   december: 12,
   dec: 12,
 };
+
+const MONTH_NAME_PATTERN = "janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez|january|february|feb|march|april|apr|may|june|july|august|aug|september|sep|october|oct|november|december|dec";
 
 function normalizeDateText(input: string): string {
   return input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -323,7 +320,7 @@ function detectReferenceDateRange(label: string, fallbackIso: string): string[] 
     if (start && end) return dateRangeInclusive(start, end);
   }
 
-  const named = normalized.match(/\b(\d{1,2})\s*(?:a|ate|-)\s*(\d{1,2})\s*(?:de\s*)?(janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez)(?:\s*(?:de\s*)?(20\d{2}))?\b/);
+  const named = normalized.match(new RegExp(`\\b(\\d{1,2})\\s*(?:a|ate|to|through|thru|-)\\s*(\\d{1,2})\\s*(?:de\\s*)?(${MONTH_NAME_PATTERN})(?:\\s*(?:de\\s*)?(20\\d{2}))?\\b`));
   if (named) {
     const month = MONTHS_PT[named[3]];
     const year = named[4] ? Number(named[4]) : Number(fallbackIso.slice(0, 4));
@@ -351,11 +348,20 @@ function detectExplicitReferenceDate(label: string, fallbackIso: string): string
     if (iso) return iso;
   }
 
-  const monthName = normalized.match(/\b(\d{1,2})\s*(?:de\s*)?(janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez)(?:\s*(?:de\s*)?(20\d{2}))?\b/);
+  const monthName = normalized.match(new RegExp(`\\b(\\d{1,2})\\s*(?:de\\s*)?(${MONTH_NAME_PATTERN})(?:\\s*(?:de\\s*)?(20\\d{2}))?\\b`));
   if (monthName) {
     const day = Number(monthName[1]);
     const month = MONTHS_PT[monthName[2]];
     const year = monthName[3] ? Number(monthName[3]) : null;
+    const iso = year ? makeIsoDate(year, month, day, fallbackIso) : inferDateWithoutYear(day, month, fallbackIso);
+    if (iso) return iso;
+  }
+
+  const monthNameEnglish = normalized.match(new RegExp(`\\b(${MONTH_NAME_PATTERN})\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:[,]?\\s*(20\\d{2}))?\\b`));
+  if (monthNameEnglish) {
+    const month = MONTHS_PT[monthNameEnglish[1]];
+    const day = Number(monthNameEnglish[2]);
+    const year = monthNameEnglish[3] ? Number(monthNameEnglish[3]) : null;
     const iso = year ? makeIsoDate(year, month, day, fallbackIso) : inferDateWithoutYear(day, month, fallbackIso);
     if (iso) return iso;
   }
@@ -372,7 +378,7 @@ function detectExplicitReferenceDate(label: string, fallbackIso: string): string
 
 function hasDateRangeSignal(label: string): boolean {
   const normalized = normalizeDateText(label);
-  return /\b\d{1,2}\s*(?:a|ate|até|-)\s*\d{1,2}\b/.test(normalized);
+  return /\b\d{1,2}\s*(?:a|ate|até|to|through|thru|-)\s*\d{1,2}\b/.test(normalized);
 }
 
 function contentHashForReference(fileHash: string, referenceDate: string): string {
@@ -459,6 +465,7 @@ function parseSheetRows(sheet: XLSX.WorkSheet, segmentIndex: number, sourceSheet
       raw: r as Record<string, unknown>,
       segment_index: segmentIndex,
       source_sheet: sourceSheet,
+      row_reference_label: mapped.row_reference_label != null ? String(mapped.row_reference_label).trim() : null,
     });
   }
   if (rows.length === 0) warnings.push("Nenhuma linha válida encontrada");
