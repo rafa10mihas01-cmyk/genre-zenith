@@ -270,6 +270,48 @@ function inferDateWithoutYear(day: number, month: number, fallbackIso: string): 
   return makeIsoDate(fallbackYear, month, day, fallbackIso) ?? makeIsoDate(fallbackYear - 1, month, day, fallbackIso);
 }
 
+function dateRangeInclusive(startIso: string, endIso: string): string[] {
+  if (endIso < startIso) return [];
+  const out: string[] = [];
+  const d = new Date(`${startIso}T00:00:00.000Z`);
+  const end = new Date(`${endIso}T00:00:00.000Z`).getTime();
+  while (d.getTime() <= end) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function detectReferenceDateRange(label: string, fallbackIso: string): string[] {
+  const stem = label.replace(/\.[a-z0-9]+$/i, "");
+  const normalized = normalizeDateText(stem);
+
+  const fullIso = stem.match(/(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})\s*(?:a|ate|até|-)\s*(?:(20\d{2})[-_.])?(\d{1,2})[-_.](\d{1,2})/i);
+  if (fullIso) {
+    const start = makeIsoDate(Number(fullIso[1]), Number(fullIso[2]), Number(fullIso[3]), fallbackIso);
+    const end = makeIsoDate(Number(fullIso[4] ?? fullIso[1]), Number(fullIso[5]), Number(fullIso[6]), fallbackIso);
+    if (start && end) return dateRangeInclusive(start, end);
+  }
+
+  const fullBr = stem.match(/(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})\s*(?:a|ate|até|-)\s*(\d{1,2})[-_.](\d{1,2})(?:[-_.](20\d{2}))?/i);
+  if (fullBr) {
+    const start = makeIsoDate(Number(fullBr[3]), Number(fullBr[2]), Number(fullBr[1]), fallbackIso);
+    const end = makeIsoDate(Number(fullBr[6] ?? fullBr[3]), Number(fullBr[5]), Number(fullBr[4]), fallbackIso);
+    if (start && end) return dateRangeInclusive(start, end);
+  }
+
+  const named = normalized.match(/\b(\d{1,2})\s*(?:a|ate|-)\s*(\d{1,2})\s*(?:de\s*)?(janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez)(?:\s*(?:de\s*)?(20\d{2}))?\b/);
+  if (named) {
+    const month = MONTHS_PT[named[3]];
+    const year = named[4] ? Number(named[4]) : Number(fallbackIso.slice(0, 4));
+    const start = makeIsoDate(year, month, Number(named[1]), fallbackIso) ?? makeIsoDate(year - 1, month, Number(named[1]), fallbackIso);
+    const end = makeIsoDate(year, month, Number(named[2]), fallbackIso) ?? makeIsoDate(year - 1, month, Number(named[2]), fallbackIso);
+    if (start && end) return dateRangeInclusive(start, end);
+  }
+
+  return [];
+}
+
 function detectExplicitReferenceDate(label: string, fallbackIso: string): string | null {
   const stem = label.replace(/\.[a-z0-9]+$/i, "");
   const normalized = normalizeDateText(stem);
