@@ -886,9 +886,7 @@ Deno.serve(async (req) => {
       .eq("deal_id", dealId);
     const isBaseline = (prevUploadsCount ?? 0) === 0;
 
-    // Modo final do upload. Em XLSX com várias abas, cada aba vira uma entrega
-    // própria; o hash também recebe o reference_date para não colidir o arquivo
-    // multi-dia inteiro contra dias diferentes.
+    // Modo final do upload.
     const willQuarantine = evalResult.decision === "quarantine";
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -905,114 +903,77 @@ Deno.serve(async (req) => {
       // best-effort
     }
 
-    const committedUploads: Array<{
-      uploadRow: any;
-      uploadId: string;
-      referenceDate: string;
-      segmentLabel: string;
-      isBaseline: boolean;
-      rows: Array<typeof matched[number]>;
-    }> = [];
-    let rowsInserted = 0;
-    let firstUploadRow: any = null;
+    // 🧱 1 IMPORTAÇÃO = 1 ENTREGA.
+    //    Grava UM único upload representando o estado consolidado dessa importação.
+    //    Sem expansão por aba/data/intervalo. content_hash = hash do arquivo (sem sufixo).
+    const uploadMode = willQuarantine
+      ? "partial_window"
+      : (isBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
+    const windowKind = (() => {
+      const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
+      const wk = evalResult.window_kind;
+      if (wk && allowed.has(wk)) return wk;
+      const headerSample = (detected ?? []).join(" ");
+      const detectedWk = detectWindowKind(fileName, headerSample);
+      if (detectedWk) return detectedWk;
+      return "last_24h";
+    })();
 
-    // 1) Registra um upload por entrega cronológica primeiro pra ter ids independentes.
-    //    Causa raiz corrigida: antes o commit iterava por segmento/aba e gravava só
-    //    uma reference_date por segmento; agora arquivos "18 a 21" geram 18,19,20,21.
-    for (const unit of deliveryUnits) {
-      const segmentIndex = Number(unit.key.split(":")[0]);
-      const segment = parsedSegments.find((s) => s.index === segmentIndex) ?? parsedSegments[0];
-      const segmentRows = unit.rows;
-      if (segmentRows.length === 0) continue;
-      const segmentReferenceDate = unit.referenceDate;
-      const segmentIsBaseline = isBaseline && committedUploads.length === 0;
-      const uploadMode = willQuarantine
-        ? "partial_window"
-        : (segmentIsBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
-      const segmentTotalStreams = segmentRows.reduce((acc, r) => acc + r.streams, 0);
-      const segmentContentHash = contentHashForReference(hash, segmentReferenceDate);
-
-      const { data: uploadRow, error: upErr } = await admin
-        .from("label_spreadsheet_uploads")
-        .insert({
-          deal_id: dealId,
-          song_id: songId,
-          uploaded_via: "client_portal",
-          file_path: filePath,
-          file_name: deliveryUnits.length > 1 ? `${fileName} :: ${unit.label}` : fileName,
-          content_hash: segmentContentHash,
-          rows_imported: segmentRows.length,
-          total_streams: segmentTotalStreams,
-          status: willQuarantine ? "quarantined" : "imported",
-          reference_date: segmentReferenceDate,
-          is_baseline: segmentIsBaseline && !willQuarantine,
-          upload_mode: uploadMode,
-          window_kind: (() => {
-            const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
-            const wk = evalResult.window_kind;
-            if (wk && allowed.has(wk)) return wk;
-            // Heurística por nome do arquivo / cabeçalho.
-            const headerSample = (segment.detected ?? detected ?? []).join(" ");
-            const detectedWk = detectWindowKind(`${fileName} ${segment.label}`, headerSample);
-            if (detectedWk) return detectedWk;
-            // Sem sinal explícito: assume janela diária (caso S4A mais comum).
-            return "last_24h";
-          })(),
-          quarantined_at: willQuarantine ? new Date().toISOString() : null,
-          quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
-          quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
-        })
-        .select()
-        .single();
-
-      if (upErr) return jr({ ok: false, error: upErr.message }, 200);
-      if (!firstUploadRow) firstUploadRow = uploadRow;
-      const uploadId = uploadRow.id as string;
-      committedUploads.push({
-        uploadRow,
-        uploadId,
-        referenceDate: segmentReferenceDate,
-        segmentLabel: unit.label,
-        isBaseline: segmentIsBaseline && !willQuarantine,
-        rows: segmentRows,
-      });
-
-      // 2) Insere linhas detalhadas com match
-      const detailRows = segmentRows.map((r) => ({
-        upload_id: uploadId,
+    const { data: uploadRow, error: upErr } = await admin
+      .from("label_spreadsheet_uploads")
+      .insert({
         deal_id: dealId,
         song_id: songId,
-        position: r.position_in_playlist ?? r.row_position,
-        version_name: r.version_name || null,
-        isrc: r.isrc || null,
-        playlist_name: r.playlist_name,
-        playlist_uri: r.playlist_uri,
-        playlist_url: r.playlist_url,
-        playlist_spotify_id: r.playlist_spotify_id,
-        owner_name: r.owner_name,
-        country: r.country,
-        streams: r.streams,
-        matched_playlist_id: r.matched_playlist_id,
-        matched_curator_id: r.matched_curator_id,
-        is_internal: r.is_internal,
-        raw_payload: { ...r.raw, source_sheet: r.source_sheet ?? null, reference_date: segmentReferenceDate },
-      }));
+        uploaded_via: "client_portal",
+        file_path: filePath,
+        file_name: fileName,
+        content_hash: hash,
+        rows_imported: rows.length,
+        total_streams: totalStreams,
+        status: willQuarantine ? "quarantined" : "imported",
+        reference_date: referenceDate,
+        is_baseline: isBaseline && !willQuarantine,
+        upload_mode: uploadMode,
+        window_kind: windowKind,
+        quarantined_at: willQuarantine ? new Date().toISOString() : null,
+        quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
+        quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
+      })
+      .select()
+      .single();
 
-      rowsInserted += detailRows.length;
-      // insere em chunks de 200
-      for (let i = 0; i < detailRows.length; i += 200) {
-        const chunk = detailRows.slice(i, i + 200);
-        const { error: rowsErr } = await admin
-          .from("label_spreadsheet_rows")
-          .insert(chunk);
-        if (rowsErr) console.error("rows insert error", rowsErr);
-      }
+    if (upErr) return jr({ ok: false, error: upErr.message }, 200);
+    const uploadId = uploadRow.id as string;
+
+    // 2) Insere linhas detalhadas com match (consolidadas, 1 linha por playlist)
+    const detailRows = matched.map((r) => ({
+      upload_id: uploadId,
+      deal_id: dealId,
+      song_id: songId,
+      position: r.position_in_playlist ?? r.row_position,
+      version_name: r.version_name || null,
+      isrc: r.isrc || null,
+      playlist_name: r.playlist_name,
+      playlist_uri: r.playlist_uri,
+      playlist_url: r.playlist_url,
+      playlist_spotify_id: r.playlist_spotify_id,
+      owner_name: r.owner_name,
+      country: r.country,
+      streams: r.streams,
+      matched_playlist_id: r.matched_playlist_id,
+      matched_curator_id: r.matched_curator_id,
+      is_internal: r.is_internal,
+      raw_payload: { ...r.raw, source_sheet: r.source_sheet ?? null, reference_date: referenceDate },
+    }));
+    let rowsInserted = detailRows.length;
+    for (let i = 0; i < detailRows.length; i += 200) {
+      const chunk = detailRows.slice(i, i + 200);
+      const { error: rowsErr } = await admin
+        .from("label_spreadsheet_rows")
+        .insert(chunk);
+      if (rowsErr) console.error("rows insert error", rowsErr);
     }
 
-    if (!firstUploadRow) return jr({ ok: false, error: "Nenhuma entrega válida foi criada a partir da planilha." }, 200);
-
-    const uploadRow = firstUploadRow;
-    const referenceDate = uploadRow.reference_date as string;
 
     // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
     //    snapshots, collections, total_delivered nem proofs. O cliente vê o aviso.
