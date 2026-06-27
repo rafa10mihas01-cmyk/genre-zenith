@@ -15739,6 +15739,7 @@ export type Database = {
           playlist_id: string
         }[]
       }
+      monitor_catalog_periodic_producer: { Args: never; Returns: undefined }
       monitor_cron_http_failures: { Args: never; Returns: number }
       move_to_dlq: {
         Args: {
