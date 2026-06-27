@@ -923,7 +923,6 @@ Deno.serve(async (req) => {
     const uploadRow = firstUploadRow;
     const uploadId = uploadRow.id as string;
     const referenceDate = uploadRow.reference_date as string;
-    const detailRows = { length: firstDetailRowsLength };
 
     // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
     //    snapshots, collections, total_delivered nem proofs. O cliente vê o aviso.
@@ -937,6 +936,7 @@ Deno.serve(async (req) => {
           ? "Essa planilha parece ser de janela curta (últimos 7d). Foi arquivada e NÃO afeta os totais."
           : "Planilha em quarentena: regressão massiva detectada. Os totais anteriores foram preservados.",
         upload: uploadRow,
+        uploads: committedUploads.map((u) => u.uploadRow),
       });
     }
 
@@ -1323,9 +1323,10 @@ Deno.serve(async (req) => {
       duplicate: false,
       summary: {
         ...previewSummary,
-        rows_inserted: detailRows.length,
+        rows_inserted: rowsInserted,
       },
       upload: uploadRow,
+      uploads: committedUploads.map((u) => u.uploadRow),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
