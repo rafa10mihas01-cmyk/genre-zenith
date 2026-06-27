@@ -1362,7 +1362,6 @@ Deno.serve(async (req) => {
         rows_inserted: rowsInserted,
       },
       upload: uploadRow,
-      uploads: committedUploads.map((u) => u.uploadRow),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
