@@ -156,6 +156,17 @@ const HEADER_MAP: Record<string, string> = {
   "POSICAO": "position_in_playlist",
   "STREAMS": "streams",
   "PLAYS": "streams",
+  "DATE": "row_reference_label",
+  "DATA": "row_reference_label",
+  "DAY": "row_reference_label",
+  "DIA": "row_reference_label",
+  "REFERENCE DATE": "row_reference_label",
+  "REF DATE": "row_reference_label",
+  "DATA REFERENCIA": "row_reference_label",
+  "DATA DE REFERENCIA": "row_reference_label",
+  "DATA DE REFERÊNCIA": "row_reference_label",
+  "PERIODO": "row_reference_label",
+  "PERÍODO": "row_reference_label",
 };
 
 type ParsedRow = {
@@ -171,6 +182,18 @@ type ParsedRow = {
   position_in_playlist: number | null;
   streams: number;
   raw: Record<string, unknown>;
+  segment_index?: number;
+  source_sheet?: string | null;
+  row_reference_label?: string | null;
+};
+
+type ParsedSegment = {
+  index: number;
+  label: string;
+  rows: ParsedRow[];
+  warnings: string[];
+  detected: string[];
+  autoFixes: Record<string, number>;
 };
 
 function detectFormat(fileName: string, buf: Uint8Array): "csv" | "xlsx" {
@@ -194,10 +217,175 @@ function detectWindowKind(fileName: string, headerSample: string): "all_time" | 
   return null;
 }
 
-function parseBuf(
-  buf: Uint8Array,
-  fmt: "csv" | "xlsx",
-): { rows: ParsedRow[]; warnings: string[]; detected: string[]; autoFixes: Record<string, number> } {
+const MONTHS_PT: Record<string, number> = {
+  janeiro: 1,
+  jan: 1,
+  fevereiro: 2,
+  fev: 2,
+  marco: 3,
+  mar: 3,
+  abril: 4,
+  abr: 4,
+  maio: 5,
+  mai: 5,
+  junho: 6,
+  jun: 6,
+  julho: 7,
+  jul: 7,
+  agosto: 8,
+  ago: 8,
+  setembro: 9,
+  set: 9,
+  outubro: 10,
+  out: 10,
+  novembro: 11,
+  nov: 11,
+  dezembro: 12,
+  dez: 12,
+  january: 1,
+  february: 2,
+  feb: 2,
+  march: 3,
+  april: 4,
+  apr: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sep: 9,
+  october: 10,
+  oct: 10,
+  november: 11,
+  december: 12,
+  dec: 12,
+};
+
+const MONTH_NAME_PATTERN = "janeiro|jan|fevereiro|fev|marco|mar|abril|abr|maio|mai|junho|jun|julho|jul|agosto|ago|setembro|set|outubro|out|novembro|nov|dezembro|dez|january|february|feb|march|april|apr|may|june|july|august|aug|september|sep|october|oct|november|december|dec";
+
+function normalizeDateText(input: string): string {
+  return input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[_.]+/g, " ");
+}
+
+function isValidIsoDate(iso: string): boolean {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+function makeIsoDate(year: number, month: number, day: number, maxIso: string): string | null {
+  const iso = `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+  if (!isValidIsoDate(iso)) return null;
+  if (iso > maxIso) return null;
+  return iso;
+}
+
+function inferDateWithoutYear(day: number, month: number, fallbackIso: string): string | null {
+  const fallbackYear = Number(fallbackIso.slice(0, 4));
+  return makeIsoDate(fallbackYear, month, day, fallbackIso) ?? makeIsoDate(fallbackYear - 1, month, day, fallbackIso);
+}
+
+function dateRangeInclusive(startIso: string, endIso: string): string[] {
+  if (endIso < startIso) return [];
+  const out: string[] = [];
+  const d = new Date(`${startIso}T00:00:00.000Z`);
+  const end = new Date(`${endIso}T00:00:00.000Z`).getTime();
+  while (d.getTime() <= end) {
+    out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
+function detectReferenceDateRange(label: string, fallbackIso: string): string[] {
+  const stem = label.replace(/\.[a-z0-9]+$/i, "");
+  const normalized = normalizeDateText(stem);
+
+  const fullIso = stem.match(/(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})\s*(?:a|ate|até|-)\s*(?:(20\d{2})[-_.])?(\d{1,2})[-_.](\d{1,2})/i);
+  if (fullIso) {
+    const start = makeIsoDate(Number(fullIso[1]), Number(fullIso[2]), Number(fullIso[3]), fallbackIso);
+    const end = makeIsoDate(Number(fullIso[4] ?? fullIso[1]), Number(fullIso[5]), Number(fullIso[6]), fallbackIso);
+    if (start && end) return dateRangeInclusive(start, end);
+  }
+
+  const fullBr = stem.match(/(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})\s*(?:a|ate|até|-)\s*(\d{1,2})[-_.](\d{1,2})(?:[-_.](20\d{2}))?/i);
+  if (fullBr) {
+    const start = makeIsoDate(Number(fullBr[3]), Number(fullBr[2]), Number(fullBr[1]), fallbackIso);
+    const end = makeIsoDate(Number(fullBr[6] ?? fullBr[3]), Number(fullBr[5]), Number(fullBr[4]), fallbackIso);
+    if (start && end) return dateRangeInclusive(start, end);
+  }
+
+  const named = normalized.match(new RegExp(`\\b(\\d{1,2})\\s*(?:a|ate|to|through|thru|-)\\s*(\\d{1,2})\\s*(?:de\\s*)?(${MONTH_NAME_PATTERN})(?:\\s*(?:de\\s*)?(20\\d{2}))?\\b`));
+  if (named) {
+    const month = MONTHS_PT[named[3]];
+    const year = named[4] ? Number(named[4]) : Number(fallbackIso.slice(0, 4));
+    const start = makeIsoDate(year, month, Number(named[1]), fallbackIso) ?? makeIsoDate(year - 1, month, Number(named[1]), fallbackIso);
+    const end = makeIsoDate(year, month, Number(named[2]), fallbackIso) ?? makeIsoDate(year - 1, month, Number(named[2]), fallbackIso);
+    if (start && end) return dateRangeInclusive(start, end);
+  }
+
+  return [];
+}
+
+function detectExplicitReferenceDate(label: string, fallbackIso: string): string | null {
+  const stem = label.replace(/\.[a-z0-9]+$/i, "");
+  const normalized = normalizeDateText(stem);
+  const fullPatterns: Array<{ re: RegExp; y: number; m: number; d: number }> = [
+    { re: /(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})/, y: 1, m: 2, d: 3 },
+    { re: /(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})/, y: 3, m: 2, d: 1 },
+    { re: /(20\d{2})(\d{2})(\d{2})/, y: 1, m: 2, d: 3 },
+    { re: /(\d{2})(\d{2})(20\d{2})/, y: 3, m: 2, d: 1 },
+  ];
+  for (const p of fullPatterns) {
+    const m = stem.match(p.re);
+    if (!m) continue;
+    const iso = makeIsoDate(Number(m[p.y]), Number(m[p.m]), Number(m[p.d]), fallbackIso);
+    if (iso) return iso;
+  }
+
+  const monthName = normalized.match(new RegExp(`\\b(\\d{1,2})\\s*(?:de\\s*)?(${MONTH_NAME_PATTERN})(?:\\s*(?:de\\s*)?(20\\d{2}))?\\b`));
+  if (monthName) {
+    const day = Number(monthName[1]);
+    const month = MONTHS_PT[monthName[2]];
+    const year = monthName[3] ? Number(monthName[3]) : null;
+    const iso = year ? makeIsoDate(year, month, day, fallbackIso) : inferDateWithoutYear(day, month, fallbackIso);
+    if (iso) return iso;
+  }
+
+  const monthNameEnglish = normalized.match(new RegExp(`\\b(${MONTH_NAME_PATTERN})\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:[,]?\\s*(20\\d{2}))?\\b`));
+  if (monthNameEnglish) {
+    const month = MONTHS_PT[monthNameEnglish[1]];
+    const day = Number(monthNameEnglish[2]);
+    const year = monthNameEnglish[3] ? Number(monthNameEnglish[3]) : null;
+    const iso = year ? makeIsoDate(year, month, day, fallbackIso) : inferDateWithoutYear(day, month, fallbackIso);
+    if (iso) return iso;
+  }
+
+  // Arquivos comuns chegam como "Tabela 23_06.csv" — isso é dia/mês, não data de upload.
+  const dayMonth = stem.match(/(?:^|[^\d])(\d{1,2})[-_.](\d{1,2})(?:$|[^\d])/);
+  if (dayMonth) {
+    const iso = inferDateWithoutYear(Number(dayMonth[1]), Number(dayMonth[2]), fallbackIso);
+    if (iso) return iso;
+  }
+
+  return null;
+}
+
+function hasDateRangeSignal(label: string): boolean {
+  const normalized = normalizeDateText(label);
+  return /\b\d{1,2}\s*(?:a|ate|até|to|through|thru|-)\s*\d{1,2}\b/.test(normalized);
+}
+
+function contentHashForReference(fileHash: string, referenceDate: string): string {
+  return `${fileHash}:${referenceDate}`;
+}
+
+function parseSheetRows(sheet: XLSX.WorkSheet, segmentIndex: number, sourceSheet: string | null): Omit<ParsedSegment, "index" | "label"> {
   const warnings: string[] = [];
   const autoFixes: Record<string, number> = {
     empty_rows: 0,
@@ -208,21 +396,6 @@ function parseBuf(
     negative_clamped: 0,
     invalid_position: 0,
   };
-  let wb;
-  if (fmt === "csv") {
-    let text = new TextDecoder("utf-8").decode(buf);
-    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
-    const firstLine = text.split(/\r?\n/)[0] ?? "";
-    const sep = (firstLine.match(/;/g) ?? []).length >
-        (firstLine.match(/,/g) ?? []).length
-      ? ";"
-      : ",";
-    wb = XLSX.read(text, { type: "string", FS: sep });
-  } else {
-    wb = XLSX.read(buf, { type: "array" });
-  }
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) return { rows: [], warnings: ["Planilha sem abas"], detected: [], autoFixes };
   const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null });
 
   const detected: string[] = [];
@@ -290,10 +463,79 @@ function parseBuf(
       position_in_playlist,
       streams,
       raw: r as Record<string, unknown>,
+      segment_index: segmentIndex,
+      source_sheet: sourceSheet,
+      row_reference_label: mapped.row_reference_label != null ? String(mapped.row_reference_label).trim() : null,
     });
   }
   if (rows.length === 0) warnings.push("Nenhuma linha válida encontrada");
   return { rows, warnings, detected, autoFixes };
+}
+
+function mergeAutoFixes(target: Record<string, number>, source: Record<string, number>) {
+  for (const [k, v] of Object.entries(source)) target[k] = (target[k] ?? 0) + v;
+}
+
+function parseBuf(
+  buf: Uint8Array,
+  fmt: "csv" | "xlsx",
+): { rows: ParsedRow[]; warnings: string[]; detected: string[]; autoFixes: Record<string, number>; segments: ParsedSegment[] } {
+  let wb;
+  if (fmt === "csv") {
+    let text = new TextDecoder("utf-8").decode(buf);
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+    const firstLine = text.split(/\r?\n/)[0] ?? "";
+    const sep = (firstLine.match(/;/g) ?? []).length >
+        (firstLine.match(/,/g) ?? []).length
+      ? ";"
+      : ",";
+    wb = XLSX.read(text, { type: "string", FS: sep });
+  } else {
+    wb = XLSX.read(buf, { type: "array" });
+  }
+
+  const sheetNames = wb.SheetNames ?? [];
+  if (sheetNames.length === 0) {
+    const emptyFixes = {
+      empty_rows: 0,
+      junk_rows: 0,
+      duplicates: 0,
+      url_cleaned: 0,
+      number_normalized: 0,
+      negative_clamped: 0,
+      invalid_position: 0,
+    };
+    return { rows: [], warnings: ["Planilha sem abas"], detected: [], autoFixes: emptyFixes, segments: [] };
+  }
+
+  const segments: ParsedSegment[] = [];
+  const warnings: string[] = [];
+  const detected = new Set<string>();
+  const autoFixes: Record<string, number> = {
+    empty_rows: 0,
+    junk_rows: 0,
+    duplicates: 0,
+    url_cleaned: 0,
+    number_normalized: 0,
+    negative_clamped: 0,
+    invalid_position: 0,
+  };
+
+  sheetNames.forEach((name: string, idx: number) => {
+    const sheet = wb.Sheets[name];
+    if (!sheet) return;
+    const parsed = parseSheetRows(sheet, idx, fmt === "xlsx" ? name : null);
+    parsed.warnings.forEach((w) => warnings.push(fmt === "xlsx" ? `${name}: ${w}` : w));
+    parsed.detected.forEach((d) => detected.add(d));
+    mergeAutoFixes(autoFixes, parsed.autoFixes);
+    if (parsed.rows.length > 0) {
+      segments.push({ index: idx, label: fmt === "xlsx" ? name : "Arquivo", ...parsed });
+    }
+  });
+
+  const rows = segments.flatMap((segment) => segment.rows);
+  if (rows.length === 0) warnings.push("Nenhuma linha válida encontrada");
+  return { rows, warnings, detected: Array.from(detected), autoFixes, segments };
 }
 
 type SpreadsheetEnrichment = {
@@ -492,7 +734,7 @@ Deno.serve(async (req) => {
     const hash = await sha256Hex(buf);
     const fmt = detectFormat(fileName, buf);
 
-    const { rows, warnings, detected, autoFixes } = parseBuf(buf, fmt);
+    const { rows, warnings, detected, autoFixes, segments } = parseBuf(buf, fmt);
     if (rows.length === 0) {
       // 🔴 Detetive bloqueia só quando é grave de verdade
       const hasStreamsCol = detected.some((d) => d.includes("→ streams"));
@@ -514,6 +756,39 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
+    const today = new Date().toISOString().slice(0, 10);
+    const parsedSegments = segments.length > 0
+      ? segments
+      : [{ index: 0, label: fileName, rows, warnings, detected, autoFixes } as ParsedSegment];
+    const segmentReferenceDates = new Map<number, string>();
+    const segmentReferenceDateRanges = new Map<number, string[]>();
+    const fileReferenceDate = detectExplicitReferenceDate(fileName, today);
+    const fileReferenceDateRange = detectReferenceDateRange(fileName, today);
+    const fileHasRange = hasDateRangeSignal(fileName);
+    for (const segment of parsedSegments) {
+      const sheetReferenceDate = fmt === "xlsx" ? detectExplicitReferenceDate(segment.label, today) : null;
+      const sheetReferenceDateRange = fmt === "xlsx" ? detectReferenceDateRange(segment.label, today) : [];
+      const refs = sheetReferenceDateRange.length > 0
+        ? sheetReferenceDateRange
+        : (fileReferenceDateRange.length > 0 ? fileReferenceDateRange : []);
+      const singleRef = sheetReferenceDate ?? fileReferenceDate;
+      if (refs.length > 0) {
+        segmentReferenceDateRanges.set(segment.index, refs);
+        segmentReferenceDates.set(segment.index, refs[0]);
+        continue;
+      }
+      if (!singleRef) {
+        return jr({
+          ok: false,
+          error: fmt === "xlsx" && (parsedSegments.length > 1 || fileHasRange)
+            ? `Não consegui identificar a data da aba "${segment.label}". Renomeie a aba para algo como "18 de junho" ou "2026-06-18".`
+            : "Não consegui identificar a data de referência da planilha pelo nome do arquivo. Renomeie o arquivo incluindo a data real, ex.: 2026-06-18 ou 18-06-2026.",
+        }, 200);
+      }
+      segmentReferenceDateRanges.set(segment.index, [singleRef]);
+      segmentReferenceDates.set(segment.index, singleRef);
+    }
+
     const totalStreams = rows.reduce((acc, r) => acc + r.streams, 0);
     const uniqueIsrcs = Array.from(new Set(rows.map((r) => r.isrc).filter(Boolean)));
 
@@ -529,9 +804,50 @@ Deno.serve(async (req) => {
       matched.map((m) => m.matched_curator_id).filter(Boolean),
     ).size;
 
+    const deliveryUnits = parsedSegments.flatMap((segment) => {
+      const segmentRows = matched.filter((r) => (r.segment_index ?? 0) === segment.index);
+      if (segmentRows.length === 0) return [];
+
+      const rowsByExplicitDate = new Map<string, typeof segmentRows>();
+      for (const r of segmentRows) {
+        const rowRef = r.row_reference_label ? detectExplicitReferenceDate(r.row_reference_label, today) : null;
+        if (!rowRef) continue;
+        const bucket = rowsByExplicitDate.get(rowRef) ?? [];
+        bucket.push(r);
+        rowsByExplicitDate.set(rowRef, bucket);
+      }
+      if (rowsByExplicitDate.size > 0) {
+        return Array.from(rowsByExplicitDate.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([referenceDate, datedRows]) => ({
+            key: `${segment.index}:${referenceDate}`,
+            label: `${segment.label} :: ${referenceDate}`,
+            referenceDate,
+            rows: datedRows,
+          }));
+      }
+
+      const refs = segmentReferenceDateRanges.get(segment.index) ?? [];
+      return refs.map((referenceDate) => ({
+        key: `${segment.index}:${referenceDate}`,
+        label: refs.length > 1 ? `${segment.label} :: ${referenceDate}` : segment.label,
+        referenceDate,
+        rows: segmentRows,
+      }));
+    });
+    const referenceDates = Array.from(new Set(deliveryUnits.map((unit) => unit.referenceDate))).sort();
+
     const previewSummary = {
       rows: rows.length,
       total_streams: totalStreams,
+      reference_dates: referenceDates,
+      deliveries_count: deliveryUnits.length,
+      segments: deliveryUnits.map((unit) => ({
+        label: unit.label,
+        rows: unit.rows.length,
+        total_streams: unit.rows.reduce((acc, r) => acc + r.streams, 0),
+        reference_date: unit.referenceDate,
+      })),
       unique_isrcs: uniqueIsrcs,
       format: fmt,
       detected_columns: detected,
@@ -571,7 +887,7 @@ Deno.serve(async (req) => {
       .map((r) => ({ playlist_spotify_id: r.playlist_spotify_id, streams: r.streams }));
     const { data: evalData } = await admin.rpc("evaluate_upload_quarantine", {
       p_deal_id: dealId,
-      p_content_hash: hash,
+      p_content_hash: null,
       p_rows: evalRows,
     });
     const evalResult = (evalData ?? { decision: "accept", mode: "periodic" }) as {
@@ -601,37 +917,6 @@ Deno.serve(async (req) => {
       }, 200);
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-
-    // 🔎 Auto-detecta data de referência pelo nome do arquivo.
-    // Aceita: YYYY-MM-DD, YYYY_MM_DD, DD-MM-YYYY, DD_MM_YYYY, DDMMYYYY, YYYYMMDD.
-    // Usa hoje como fallback se nada bater ou se a data parecer inválida.
-    function detectReferenceDate(name: string, fallback: string): string {
-      const stem = name.replace(/\.[a-z0-9]+$/i, "");
-      const patterns: Array<{ re: RegExp; y: number; m: number; d: number }> = [
-        { re: /(20\d{2})[-_.](\d{1,2})[-_.](\d{1,2})/, y: 1, m: 2, d: 3 },
-        { re: /(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2})/, y: 3, m: 2, d: 1 },
-        { re: /(20\d{2})(\d{2})(\d{2})/, y: 1, m: 2, d: 3 },
-        { re: /(\d{2})(\d{2})(20\d{2})/, y: 3, m: 2, d: 1 },
-      ];
-      for (const p of patterns) {
-        const m = stem.match(p.re);
-        if (!m) continue;
-        const yyyy = Number(m[p.y]);
-        const mm = Number(m[p.m]);
-        const dd = Number(m[p.d]);
-        if (mm < 1 || mm > 12 || dd < 1 || dd > 31) continue;
-        const iso = `${yyyy.toString().padStart(4, "0")}-${mm.toString().padStart(2, "0")}-${dd.toString().padStart(2, "0")}`;
-        const dt = new Date(iso + "T00:00:00Z");
-        if (isNaN(dt.getTime())) continue;
-        // Não aceita datas futuras (> hoje) — usa fallback.
-        if (iso > fallback) continue;
-        return iso;
-      }
-      return fallback;
-    }
-    const referenceDate = detectReferenceDate(fileName, today);
-
     // 🎯 Primeiro upload do deal vira BASELINE automaticamente.
     const { count: prevUploadsCount } = await admin
       .from("label_spreadsheet_uploads")
@@ -639,11 +924,10 @@ Deno.serve(async (req) => {
       .eq("deal_id", dealId);
     const isBaseline = (prevUploadsCount ?? 0) === 0;
 
-    // Modo final do upload
+    // Modo final do upload. Em XLSX com várias abas, cada aba vira uma entrega
+    // própria; o hash também recebe o reference_date para não colidir o arquivo
+    // multi-dia inteiro contra dias diferentes.
     const willQuarantine = evalResult.decision === "quarantine";
-    const uploadMode = willQuarantine
-      ? "partial_window"
-      : (isBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
 
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     const filePath = `${dealId}/${Date.now()}-${safeName}`;
@@ -659,74 +943,114 @@ Deno.serve(async (req) => {
       // best-effort
     }
 
-    // 1) Registra upload primeiro pra ter o id
-    const { data: uploadRow, error: upErr } = await admin
-      .from("label_spreadsheet_uploads")
-      .insert({
+    const committedUploads: Array<{
+      uploadRow: any;
+      uploadId: string;
+      referenceDate: string;
+      segmentLabel: string;
+      isBaseline: boolean;
+      rows: Array<typeof matched[number]>;
+    }> = [];
+    let rowsInserted = 0;
+    let firstUploadRow: any = null;
+
+    // 1) Registra um upload por entrega cronológica primeiro pra ter ids independentes.
+    //    Causa raiz corrigida: antes o commit iterava por segmento/aba e gravava só
+    //    uma reference_date por segmento; agora arquivos "18 a 21" geram 18,19,20,21.
+    for (const unit of deliveryUnits) {
+      const segmentIndex = Number(unit.key.split(":")[0]);
+      const segment = parsedSegments.find((s) => s.index === segmentIndex) ?? parsedSegments[0];
+      const segmentRows = unit.rows;
+      if (segmentRows.length === 0) continue;
+      const segmentReferenceDate = unit.referenceDate;
+      const segmentIsBaseline = isBaseline && committedUploads.length === 0;
+      const uploadMode = willQuarantine
+        ? "partial_window"
+        : (segmentIsBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
+      const segmentTotalStreams = segmentRows.reduce((acc, r) => acc + r.streams, 0);
+      const segmentContentHash = contentHashForReference(hash, segmentReferenceDate);
+
+      const { data: uploadRow, error: upErr } = await admin
+        .from("label_spreadsheet_uploads")
+        .insert({
+          deal_id: dealId,
+          song_id: songId,
+          uploaded_via: "client_portal",
+          file_path: filePath,
+          file_name: deliveryUnits.length > 1 ? `${fileName} :: ${unit.label}` : fileName,
+          content_hash: segmentContentHash,
+          rows_imported: segmentRows.length,
+          total_streams: segmentTotalStreams,
+          status: willQuarantine ? "quarantined" : "imported",
+          reference_date: segmentReferenceDate,
+          is_baseline: segmentIsBaseline && !willQuarantine,
+          upload_mode: uploadMode,
+          window_kind: (() => {
+            const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
+            const wk = evalResult.window_kind;
+            if (wk && allowed.has(wk)) return wk;
+            // Heurística por nome do arquivo / cabeçalho.
+            const headerSample = (segment.detected ?? detected ?? []).join(" ");
+            const detectedWk = detectWindowKind(`${fileName} ${segment.label}`, headerSample);
+            if (detectedWk) return detectedWk;
+            // Sem sinal explícito: assume janela diária (caso S4A mais comum).
+            return "last_24h";
+          })(),
+          quarantined_at: willQuarantine ? new Date().toISOString() : null,
+          quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
+          quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
+        })
+        .select()
+        .single();
+
+      if (upErr) return jr({ ok: false, error: upErr.message }, 200);
+      if (!firstUploadRow) firstUploadRow = uploadRow;
+      const uploadId = uploadRow.id as string;
+      committedUploads.push({
+        uploadRow,
+        uploadId,
+        referenceDate: segmentReferenceDate,
+        segmentLabel: unit.label,
+        isBaseline: segmentIsBaseline && !willQuarantine,
+        rows: segmentRows,
+      });
+
+      // 2) Insere linhas detalhadas com match
+      const detailRows = segmentRows.map((r) => ({
+        upload_id: uploadId,
         deal_id: dealId,
         song_id: songId,
-        uploaded_via: "client_portal",
-        file_path: filePath,
-        file_name: fileName,
-        content_hash: hash,
-        rows_imported: rows.length,
-        total_streams: totalStreams,
-        status: willQuarantine ? "quarantined" : "imported",
-        reference_date: referenceDate,
-        is_baseline: isBaseline && !willQuarantine,
-        upload_mode: uploadMode,
-        window_kind: (() => {
-          const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
-          const wk = evalResult.window_kind;
-          if (wk && allowed.has(wk)) return wk;
-          // Heurística por nome do arquivo / cabeçalho.
-          const headerSample = (detected ?? []).join(" ");
-          const detectedWk = detectWindowKind(fileName, headerSample);
-          if (detectedWk) return detectedWk;
-          // Sem sinal explícito: assume janela diária (caso S4A mais comum).
-          // É o mesmo comportamento do bot DOM (que sempre cai em 24h/7d).
-          // Mantém o upload fora da quarentena por classificação ausente.
-          return "last_24h";
-        })(),
-        quarantined_at: willQuarantine ? new Date().toISOString() : null,
-        quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
-        quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
-      })
-      .select()
-      .single();
+        position: r.position_in_playlist ?? r.row_position,
+        version_name: r.version_name || null,
+        isrc: r.isrc || null,
+        playlist_name: r.playlist_name,
+        playlist_uri: r.playlist_uri,
+        playlist_url: r.playlist_url,
+        playlist_spotify_id: r.playlist_spotify_id,
+        owner_name: r.owner_name,
+        country: r.country,
+        streams: r.streams,
+        matched_playlist_id: r.matched_playlist_id,
+        matched_curator_id: r.matched_curator_id,
+        is_internal: r.is_internal,
+        raw_payload: { ...r.raw, source_sheet: r.source_sheet ?? null, reference_date: segmentReferenceDate },
+      }));
 
-    if (upErr) return jr({ ok: false, error: upErr.message }, 200);
-    const uploadId = uploadRow.id as string;
-
-    // 2) Insere linhas detalhadas com match
-    const detailRows = matched.map((r) => ({
-      upload_id: uploadId,
-      deal_id: dealId,
-      song_id: songId,
-      position: r.position_in_playlist ?? r.row_position,
-      version_name: r.version_name || null,
-      isrc: r.isrc || null,
-      playlist_name: r.playlist_name,
-      playlist_uri: r.playlist_uri,
-      playlist_url: r.playlist_url,
-      playlist_spotify_id: r.playlist_spotify_id,
-      owner_name: r.owner_name,
-      country: r.country,
-      streams: r.streams,
-      matched_playlist_id: r.matched_playlist_id,
-      matched_curator_id: r.matched_curator_id,
-      is_internal: r.is_internal,
-      raw_payload: r.raw,
-    }));
-
-    // insere em chunks de 200
-    for (let i = 0; i < detailRows.length; i += 200) {
-      const chunk = detailRows.slice(i, i + 200);
-      const { error: rowsErr } = await admin
-        .from("label_spreadsheet_rows")
-        .insert(chunk);
-      if (rowsErr) console.error("rows insert error", rowsErr);
+      rowsInserted += detailRows.length;
+      // insere em chunks de 200
+      for (let i = 0; i < detailRows.length; i += 200) {
+        const chunk = detailRows.slice(i, i + 200);
+        const { error: rowsErr } = await admin
+          .from("label_spreadsheet_rows")
+          .insert(chunk);
+        if (rowsErr) console.error("rows insert error", rowsErr);
+      }
     }
+
+    if (!firstUploadRow) return jr({ ok: false, error: "Nenhuma entrega válida foi criada a partir da planilha." }, 200);
+
+    const uploadRow = firstUploadRow;
+    const referenceDate = uploadRow.reference_date as string;
 
     // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
     //    snapshots, collections, total_delivered nem proofs. O cliente vê o aviso.
@@ -740,6 +1064,7 @@ Deno.serve(async (req) => {
           ? "Essa planilha parece ser de janela curta (últimos 7d). Foi arquivada e NÃO afeta os totais."
           : "Planilha em quarentena: regressão massiva detectada. Os totais anteriores foram preservados.",
         upload: uploadRow,
+        uploads: committedUploads.map((u) => u.uploadRow),
       });
     }
 
@@ -773,10 +1098,6 @@ Deno.serve(async (req) => {
     const allPlaylistRows = matched.filter(
       (r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0,
     );
-    const matchedInternal = matched.filter(
-      (r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id,
-    );
-
     if (allPlaylistRows.length > 0) {
       // 3.0) Garante que existe um curator_playlists pra cada (deal, song, spotify_id).
       //      Snapshots e proofs têm FK pra essa tabela — sem ela o insert quebra.
@@ -824,37 +1145,41 @@ Deno.serve(async (req) => {
       }
 
 
-      // Snapshots: TODAS as playlists (internas + orgânicas) — pra baseline ter
-      // a foto completa e pra calcular entrega a partir de qualquer playlist.
-      const enrichedAll = allPlaylistRows
-        .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-        .filter((x): x is { r: typeof allPlaylistRows[number]; cpId: string } => !!x.cpId);
-
-      const snapshotRows = enrichedAll.map(({ r, cpId }) => ({
-        deal_id: dealId,
-        song_id: songId,
-        playlist_id: cpId,
-        plays: r.streams,
-        captured_at: capturedAt,
-        source: "label_spreadsheet",
-        is_initial_capture: isBaseline,
-        notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
-        ai_raw: {
+      // Snapshots: TODAS as playlists (internas + orgânicas) — para arquivos
+      // multi-dia, cada aba/dia aponta para o seu próprio upload_id/reference_date.
+      const snapshotRows = committedUploads.flatMap((entry) => {
+        const enrichedAll = entry.rows
+          .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
+          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+          .filter((x): x is { r: typeof entry.rows[number]; cpId: string } => !!x.cpId);
+        return enrichedAll.map(({ r, cpId }) => ({
+          deal_id: dealId,
+          song_id: songId,
+          playlist_id: cpId,
+          plays: r.streams,
+          captured_at: capturedAt,
           source: "label_spreadsheet",
-          format: fmt,
-          playlist_name: r.playlist_name,
-          playlist_spotify_id: r.playlist_spotify_id,
-          owner_name: r.owner_name,
-          country: r.country,
-          isrc: r.isrc,
-          position_in_playlist: r.position_in_playlist,
-          version_name: r.version_name,
-          matched_curator_id: r.matched_curator_id,
-          managed_playlist_id: r.matched_playlist_id,
-          is_internal: r.is_internal,
-          upload_id: uploadId,
-        },
-      }));
+          is_initial_capture: entry.isBaseline,
+          notes: r.playlist_name + (r.owner_name ? ` (${r.owner_name})` : ""),
+          ai_raw: {
+            source: "label_spreadsheet",
+            format: fmt,
+            playlist_name: r.playlist_name,
+            playlist_spotify_id: r.playlist_spotify_id,
+            owner_name: r.owner_name,
+            country: r.country,
+            isrc: r.isrc,
+            position_in_playlist: r.position_in_playlist,
+            version_name: r.version_name,
+            matched_curator_id: r.matched_curator_id,
+            managed_playlist_id: r.matched_playlist_id,
+            is_internal: r.is_internal,
+            upload_id: entry.uploadId,
+            reference_date: entry.referenceDate,
+            source_sheet: r.source_sheet ?? null,
+          },
+        }));
+      });
 
       const { error: snapErr } = await admin
         .from("curator_deal_snapshots")
@@ -866,23 +1191,27 @@ Deno.serve(async (req) => {
       //   antes da campanha. Só uploads incrementais geram delivery_proofs.
       // E só vale pras playlists INTERNAS (nossas) — orgânicas ficam só
       // no snapshot, sem print de entrega.
-      if (!isBaseline && songId && trackNameForProofs) {
-        const enrichedInternal = matchedInternal
-          .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
-          .filter((x): x is { r: typeof matchedInternal[number]; cpId: string } => !!x.cpId);
-        const proofRows = enrichedInternal.map(({ r, cpId }) => ({
-          deal_id: dealId,
-          song_id: songId,
-          playlist_id: cpId,
-          spotify_playlist_id: r.playlist_spotify_id as string,
-          playlist_name: r.playlist_name,
-          track_name: trackNameForProofs,
-          plays_total: r.streams,
-          position_in_playlist: r.position_in_playlist ?? null,
-          source: "label_spreadsheet",
-          captured_at: capturedAt,
-          spotify_track_id: spotifyTrackIdForProofs,
-        }));
+      if (songId && trackNameForProofs) {
+        const proofRows = committedUploads.flatMap((entry) => {
+          if (entry.isBaseline) return [];
+          const enrichedInternal = entry.rows
+            .filter((r) => typeof r.matched_playlist_id === "string" && r.matched_playlist_id.length === 36 && !!r.playlist_spotify_id)
+            .map((r) => ({ r, cpId: cpIdBySpotify.get(r.playlist_spotify_id as string) }))
+            .filter((x): x is { r: typeof entry.rows[number]; cpId: string } => !!x.cpId);
+          return enrichedInternal.map(({ r, cpId }) => ({
+            deal_id: dealId,
+            song_id: songId,
+            playlist_id: cpId,
+            spotify_playlist_id: r.playlist_spotify_id as string,
+            playlist_name: r.playlist_name,
+            track_name: trackNameForProofs,
+            plays_total: r.streams,
+            position_in_playlist: r.position_in_playlist ?? null,
+            source: "label_spreadsheet",
+            captured_at: capturedAt,
+            spotify_track_id: spotifyTrackIdForProofs,
+          }));
+        });
         if (proofRows.length > 0) {
           const { error: proofErr } = await admin.from("delivery_proofs").insert(proofRows);
           if (proofErr) console.error("delivery_proofs insert error", proofErr);
@@ -939,51 +1268,52 @@ Deno.serve(async (req) => {
     //     Writer (`_shared/collection-writer.ts`). Proibido INSERT/UPSERT
     //     direto nesta tabela em qualquer Edge Function.
     if (campaignIdForUpdate && allPlaylistRows.length > 0) {
-      const intent: "baseline" | "periodic" = isBaseline ? "baseline" : "periodic";
-      const collectionRows = allPlaylistRows
-        .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
-        .map((r) => ({
-          spotify_playlist_id: r.playlist_spotify_id as string,
-          playlist_url: r.playlist_url
-            || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
-          playlist_name: r.playlist_name ?? null,
-          plays_7d: Math.max(0, Number(r.streams || 0)),
-          source: "label_spreadsheet",
-        }));
-      const rejected = allPlaylistRows.length - collectionRows.length;
-      console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} received=${allPlaylistRows.length} valid=${collectionRows.length} rejected=${rejected}`);
-      if (collectionRows.length > 0) {
-        try {
-          const { writeCollectionBatch } = await import("../_shared/collection-writer.ts");
+      try {
+        const { writeCollectionBatch } = await import("../_shared/collection-writer.ts");
+        for (const entry of committedUploads) {
+          const intent: "baseline" | "periodic" = entry.isBaseline ? "baseline" : "periodic";
+          const collectionRows = entry.rows
+            .filter((r) => typeof r.playlist_spotify_id === "string" && r.playlist_spotify_id.length > 0)
+            .map((r) => ({
+              spotify_playlist_id: r.playlist_spotify_id as string,
+              playlist_url: r.playlist_url
+                || `https://open.spotify.com/playlist/${r.playlist_spotify_id}`,
+              playlist_name: r.playlist_name ?? null,
+              plays_7d: Math.max(0, Number(r.streams || 0)),
+              source: "label_spreadsheet",
+            }));
+          const rejected = entry.rows.length - collectionRows.length;
+          console.log(`[mirror] start campaign=${campaignIdForUpdate} intent=${intent} ref=${entry.referenceDate} received=${entry.rows.length} valid=${collectionRows.length} rejected=${rejected}`);
+          if (collectionRows.length === 0) continue;
           const result = await writeCollectionBatch(admin, {
             writer: "import-label-spreadsheet",
             campaign_id: campaignIdForUpdate,
             intent,
             rows: collectionRows,
-            upload_id: uploadId,
+            upload_id: entry.uploadId,
             default_source: "label_spreadsheet",
           });
-          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate}`, JSON.stringify(result));
-        } catch (e) {
-          console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+          console.log(`[mirror] writer ok campaign=${campaignIdForUpdate} ref=${entry.referenceDate}`, JSON.stringify(result));
         }
+      } catch (e) {
+        console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+      }
 
-        // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
-        //     real (curator_playlists.match_status='curator') no(s) deal(s) da
-        //     mesma campanha. Sem isso, a aba Curadores fica em "Matched 0"
-        //     mesmo com a planilha já refletindo entrega real.
-        try {
-          const { data: matchData, error: matchErr } = await admin.rpc("match_curator_campaign_playlists", {
-            p_campaign_id: campaignIdForUpdate,
-          });
-          if (matchErr) {
-            console.error(`[matcher] error campaign=${campaignIdForUpdate}`, matchErr.message);
-          } else {
-            console.log(`[matcher] ok campaign=${campaignIdForUpdate}`, JSON.stringify(matchData));
-          }
-        } catch (e) {
-          console.error(`[matcher] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+      // 3d) Auto-matcher: promove pending_match → matched quando há vínculo
+      //     real (curator_playlists.match_status='curator') no(s) deal(s) da
+      //     mesma campanha. Sem isso, a aba Curadores fica em "Matched 0"
+      //     mesmo com a planilha já refletindo entrega real.
+      try {
+        const { data: matchData, error: matchErr } = await admin.rpc("match_curator_campaign_playlists", {
+          p_campaign_id: campaignIdForUpdate,
+        });
+        if (matchErr) {
+          console.error(`[matcher] error campaign=${campaignIdForUpdate}`, matchErr.message);
+        } else {
+          console.log(`[matcher] ok campaign=${campaignIdForUpdate}`, JSON.stringify(matchData));
         }
+      } catch (e) {
+        console.error(`[matcher] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
       }
     }
 
@@ -1121,9 +1451,10 @@ Deno.serve(async (req) => {
       duplicate: false,
       summary: {
         ...previewSummary,
-        rows_inserted: detailRows.length,
+        rows_inserted: rowsInserted,
       },
       upload: uploadRow,
+      uploads: committedUploads.map((u) => u.uploadRow),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
