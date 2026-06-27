@@ -820,74 +820,96 @@ Deno.serve(async (req) => {
     let firstUploadRow: any = null;
     let firstDetailRowsLength = 0;
 
-    // 1) Registra upload primeiro pra ter o id
-    const { data: uploadRow, error: upErr } = await admin
-      .from("label_spreadsheet_uploads")
-      .insert({
+    // 1) Registra um upload por dia/aba primeiro pra ter ids independentes
+    for (const segment of parsedSegments) {
+      const segmentRows = matched.filter((r) => (r.segment_index ?? 0) === segment.index);
+      if (segmentRows.length === 0) continue;
+      const segmentReferenceDate = segmentReferenceDates.get(segment.index);
+      if (!segmentReferenceDate) continue;
+      const segmentIsBaseline = isBaseline && committedUploads.length === 0;
+      const uploadMode = willQuarantine
+        ? "partial_window"
+        : (segmentIsBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
+      const segmentTotalStreams = segmentRows.reduce((acc, r) => acc + r.streams, 0);
+      const segmentContentHash = contentHashForReference(hash, segmentReferenceDate);
+
+      const { data: uploadRow, error: upErr } = await admin
+        .from("label_spreadsheet_uploads")
+        .insert({
+          deal_id: dealId,
+          song_id: songId,
+          uploaded_via: "client_portal",
+          file_path: filePath,
+          file_name: parsedSegments.length > 1 ? `${fileName} :: ${segment.label}` : fileName,
+          content_hash: segmentContentHash,
+          rows_imported: segmentRows.length,
+          total_streams: segmentTotalStreams,
+          status: willQuarantine ? "quarantined" : "imported",
+          reference_date: segmentReferenceDate,
+          is_baseline: segmentIsBaseline && !willQuarantine,
+          upload_mode: uploadMode,
+          window_kind: (() => {
+            const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
+            const wk = evalResult.window_kind;
+            if (wk && allowed.has(wk)) return wk;
+            // Heurística por nome do arquivo / cabeçalho.
+            const headerSample = (segment.detected ?? detected ?? []).join(" ");
+            const detectedWk = detectWindowKind(`${fileName} ${segment.label}`, headerSample);
+            if (detectedWk) return detectedWk;
+            // Sem sinal explícito: assume janela diária (caso S4A mais comum).
+            return "last_24h";
+          })(),
+          quarantined_at: willQuarantine ? new Date().toISOString() : null,
+          quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
+          quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
+        })
+        .select()
+        .single();
+
+      if (upErr) return jr({ ok: false, error: upErr.message }, 200);
+      if (!firstUploadRow) firstUploadRow = uploadRow;
+      committedUploads.push(uploadRow);
+      const uploadId = uploadRow.id as string;
+
+      // 2) Insere linhas detalhadas com match
+      const detailRows = segmentRows.map((r) => ({
+        upload_id: uploadId,
         deal_id: dealId,
         song_id: songId,
-        uploaded_via: "client_portal",
-        file_path: filePath,
-        file_name: fileName,
-        content_hash: hash,
-        rows_imported: rows.length,
-        total_streams: totalStreams,
-        status: willQuarantine ? "quarantined" : "imported",
-        reference_date: referenceDate,
-        is_baseline: isBaseline && !willQuarantine,
-        upload_mode: uploadMode,
-        window_kind: (() => {
-          const allowed = new Set(["all_time", "last_28d", "last_7d", "last_24h"]);
-          const wk = evalResult.window_kind;
-          if (wk && allowed.has(wk)) return wk;
-          // Heurística por nome do arquivo / cabeçalho.
-          const headerSample = (detected ?? []).join(" ");
-          const detectedWk = detectWindowKind(fileName, headerSample);
-          if (detectedWk) return detectedWk;
-          // Sem sinal explícito: assume janela diária (caso S4A mais comum).
-          // É o mesmo comportamento do bot DOM (que sempre cai em 24h/7d).
-          // Mantém o upload fora da quarentena por classificação ausente.
-          return "last_24h";
-        })(),
-        quarantined_at: willQuarantine ? new Date().toISOString() : null,
-        quarantine_reason: willQuarantine ? (evalResult.reason ?? null) : null,
-        quarantine_signals: willQuarantine ? (evalResult.signals ?? null) : null,
-      })
-      .select()
-      .single();
+        position: r.position_in_playlist ?? r.row_position,
+        version_name: r.version_name || null,
+        isrc: r.isrc || null,
+        playlist_name: r.playlist_name,
+        playlist_uri: r.playlist_uri,
+        playlist_url: r.playlist_url,
+        playlist_spotify_id: r.playlist_spotify_id,
+        owner_name: r.owner_name,
+        country: r.country,
+        streams: r.streams,
+        matched_playlist_id: r.matched_playlist_id,
+        matched_curator_id: r.matched_curator_id,
+        is_internal: r.is_internal,
+        raw_payload: { ...r.raw, source_sheet: r.source_sheet ?? null, reference_date: segmentReferenceDate },
+      }));
 
-    if (upErr) return jr({ ok: false, error: upErr.message }, 200);
-    const uploadId = uploadRow.id as string;
-
-    // 2) Insere linhas detalhadas com match
-    const detailRows = matched.map((r) => ({
-      upload_id: uploadId,
-      deal_id: dealId,
-      song_id: songId,
-      position: r.position_in_playlist ?? r.row_position,
-      version_name: r.version_name || null,
-      isrc: r.isrc || null,
-      playlist_name: r.playlist_name,
-      playlist_uri: r.playlist_uri,
-      playlist_url: r.playlist_url,
-      playlist_spotify_id: r.playlist_spotify_id,
-      owner_name: r.owner_name,
-      country: r.country,
-      streams: r.streams,
-      matched_playlist_id: r.matched_playlist_id,
-      matched_curator_id: r.matched_curator_id,
-      is_internal: r.is_internal,
-      raw_payload: r.raw,
-    }));
-
-    // insere em chunks de 200
-    for (let i = 0; i < detailRows.length; i += 200) {
-      const chunk = detailRows.slice(i, i + 200);
-      const { error: rowsErr } = await admin
-        .from("label_spreadsheet_rows")
-        .insert(chunk);
-      if (rowsErr) console.error("rows insert error", rowsErr);
+      if (committedUploads.length === 1) firstDetailRowsLength = detailRows.length;
+      rowsInserted += detailRows.length;
+      // insere em chunks de 200
+      for (let i = 0; i < detailRows.length; i += 200) {
+        const chunk = detailRows.slice(i, i + 200);
+        const { error: rowsErr } = await admin
+          .from("label_spreadsheet_rows")
+          .insert(chunk);
+        if (rowsErr) console.error("rows insert error", rowsErr);
+      }
     }
+
+    if (!firstUploadRow) return jr({ ok: false, error: "Nenhuma entrega válida foi criada a partir da planilha." }, 200);
+
+    const uploadRow = firstUploadRow;
+    const uploadId = uploadRow.id as string;
+    const referenceDate = uploadRow.reference_date as string;
+    const detailRows = { length: firstDetailRowsLength };
 
     // 🚫 Upload quarentenado: ainda gravou upload + rows pra auditoria, mas NÃO propaga
     //    snapshots, collections, total_delivered nem proofs. O cliente vê o aviso.
