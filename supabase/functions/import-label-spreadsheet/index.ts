@@ -103,6 +103,34 @@ async function sha256Hex(buf: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function sha256Text(input: string): Promise<string> {
+  return sha256Hex(new TextEncoder().encode(input));
+}
+
+function normalizeHashText(input: unknown): string {
+  return String(input ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+async function contentHashForRows(rows: ParsedRow[]): Promise<string> {
+  const canonicalLines = rows
+    .map((r) => [
+      normalizeHashText(r.playlist_spotify_id || `${r.playlist_name}|${r.owner_name ?? ""}`),
+      normalizeHashText(r.playlist_name),
+      normalizeHashText(r.owner_name),
+      String(Math.max(0, Math.round(Number(r.streams || 0)))),
+      r.position_in_playlist ?? r.row_position ?? "",
+      normalizeHashText(r.isrc),
+      normalizeHashText(r.version_name),
+    ].map((part) => String(part).replace(/[\t\r\n]+/g, " ")).join("\t"))
+    .sort((a, b) => a.localeCompare(b));
+  return sha256Text(canonicalLines.join("\n"));
+}
+
 function base64ToBytes(b64: string): Uint8Array {
   const clean = b64.replace(/^data:[^;]+;base64,/, "");
   const bin = atob(clean);
@@ -395,10 +423,6 @@ function detectExplicitReferenceDate(label: string, fallbackIso: string): string
 function hasDateRangeSignal(label: string): boolean {
   const normalized = normalizeDateText(label);
   return /\b\d{1,2}\s*(?:a|ate|até|to|through|thru|-)\s*\d{1,2}\b/.test(normalized);
-}
-
-function contentHashForReference(fileHash: string, referenceDate: string): string {
-  return `${fileHash}:${referenceDate}`;
 }
 
 function parseSheetRows(sheet: XLSX.WorkSheet, segmentIndex: number, sourceSheet: string | null): Omit<ParsedSegment, "index" | "label"> {
@@ -747,7 +771,6 @@ Deno.serve(async (req) => {
     if (buf.length > 8 * 1024 * 1024) {
       return jr({ ok: false, error: "Arquivo grande demais (máx 8MB)" }, 200);
     }
-    const hash = await sha256Hex(buf);
     const fmt = detectFormat(fileName, buf);
 
     const { rows: parsedRows, warnings, detected, autoFixes } = parseBuf(buf, fmt);
@@ -785,6 +808,7 @@ Deno.serve(async (req) => {
       consolidatedMap.set(key, r);
     }
     const rows = Array.from(consolidatedMap.values());
+    const hash = await contentHashForRows(rows);
 
     const today = new Date().toISOString().slice(0, 10);
     // Carimbo único da importação. Se o nome do arquivo trouxer data explícita, usamos.
@@ -849,7 +873,7 @@ Deno.serve(async (req) => {
       .map((r) => ({ playlist_spotify_id: r.playlist_spotify_id, streams: r.streams }));
     const { data: evalData } = await admin.rpc("evaluate_upload_quarantine", {
       p_deal_id: dealId,
-      p_content_hash: null,
+      p_content_hash: hash,
       p_rows: evalRows,
     });
     const evalResult = (evalData ?? { decision: "accept", mode: "periodic" }) as {
@@ -905,7 +929,8 @@ Deno.serve(async (req) => {
 
     // 🧱 1 IMPORTAÇÃO = 1 ENTREGA.
     //    Grava UM único upload representando o estado consolidado dessa importação.
-    //    Sem expansão por aba/data/intervalo. content_hash = hash do arquivo (sem sufixo).
+    //    Sem expansão por aba/data/intervalo. content_hash = hash canônico
+    //    das linhas consolidadas, não do arquivo bruto/nome/data.
     const uploadMode = willQuarantine
       ? "partial_window"
       : (isBaseline ? "baseline" : (evalResult.mode ?? "periodic"));
