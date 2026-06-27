@@ -15773,15 +15773,26 @@ export type Database = {
         Returns: number
       }
       infer_collection_mode: { Args: { p_deal_id: string }; Returns: string }
-      ingest_campaign_collection_batch: {
-        Args: {
-          p_campaign_id: string
-          p_intent: string
-          p_rows: Json
-          p_snapshot_run_id?: string
-        }
-        Returns: Json
-      }
+      ingest_campaign_collection_batch:
+        | {
+            Args: {
+              p_campaign_id: string
+              p_intent: string
+              p_rows: Json
+              p_snapshot_run_id?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_campaign_id: string
+              p_intent: string
+              p_rows: Json
+              p_snapshot_run_id?: string
+              p_upload_id?: string
+            }
+            Returns: Json
+          }
       is_admin: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_operator: { Args: never; Returns: boolean }
