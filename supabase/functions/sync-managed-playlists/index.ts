@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
 
     let q = supabase.from("managed_playlists")
       .select("id, spotify_playlist_id, canonical_playlist_id, name, cover_url, owner_spotify_user_id, execution_mode")
-      .is("archived_at", null);
+      .eq("playlist_type", "CAMPAIGN");
     if (targetIds) {
       if (targetIds.length === 0) {
         // tier vazio: nada a processar
