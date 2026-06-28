@@ -1,4 +1,5 @@
-// delete-managed-playlist — hard delete (apenas se já estiver arquivada).
+// delete-managed-playlist — hard delete (apenas se já estiver ARCHIVED).
+// playlist_type=ARCHIVED é a única fonte de verdade pra elegibilidade de exclusão.
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
@@ -31,23 +32,25 @@ Deno.serve(async (req) => {
       const { data, error } = await supabase
         .from("managed_playlists")
         .select("id")
-        .not("archived_at", "is", null);
+        .eq("playlist_type", "ARCHIVED");
       if (error) return jr({ ok: false, error: error.message }, 500);
       targetIds = (data ?? []).map((r: any) => r.id);
     }
 
     if (targetIds.length === 0) return jr({ ok: true, deleted: 0 });
 
-    // Segurança: só apaga se estiver arquivada
+    // Segurança: só apaga se estiver ARCHIVED
     const { data: rows, error: chkErr } = await supabase
       .from("managed_playlists")
-      .select("id, archived_at")
+      .select("id, playlist_type")
       .in("id", targetIds);
     if (chkErr) return jr({ ok: false, error: chkErr.message }, 500);
 
-    const okIds = (rows ?? []).filter((r: any) => !!r.archived_at).map((r: any) => r.id);
+    const okIds = (rows ?? [])
+      .filter((r: any) => r.playlist_type === "ARCHIVED")
+      .map((r: any) => r.id);
     if (okIds.length === 0) {
-      return jr({ ok: false, error: "Nenhuma playlist arquivada encontrada nos IDs informados." }, 400);
+      return jr({ ok: false, error: "Nenhuma playlist ARCHIVED encontrada nos IDs informados." }, 400);
     }
 
     const { error: delErr } = await supabase

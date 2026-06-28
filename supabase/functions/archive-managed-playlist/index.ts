@@ -1,4 +1,6 @@
-// archive-managed-playlist — soft delete (não toca no Spotify).
+// archive-managed-playlist — soft delete via playlist_type=ARCHIVED.
+// playlist_type passou a ser a fonte de verdade; archived_at é apenas timestamp
+// derivado (gatilho `trg_sync_archived_at_with_playlist_type` cuida disso).
 import { corsHeaders } from "npm:@supabase/supabase-js/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireTeamAccess } from "../_shared/auth.ts";
@@ -21,22 +23,23 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const id: string = body?.playlist_id;
     const restore = body?.restore === true;
+    // Ao restaurar, a categoria padrão é CATALOG (a função de negócio anterior se perdeu).
+    // O operador pode promover para CAMPAIGN depois, manualmente.
+    const restoreTo: "CAMPAIGN" | "CATALOG" =
+      body?.restore_to === "CAMPAIGN" ? "CAMPAIGN" : "CATALOG";
     if (!id) return jr({ ok: false, error: "playlist_id obrigatório" }, 400);
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // pega canonical_playlist_id antes de arquivar pra limpar derivados
     const { data: mp } = await supabase
       .from("managed_playlists")
-      .select("id, canonical_playlist_id, followers")
+      .select("id, canonical_playlist_id, followers, playlist_type")
       .eq("id", id)
       .maybeSingle();
 
-    // Ao restaurar, também limpa o marcador de elegibilidade (já não é arquivada).
-    // Ao arquivar manualmente, registra o motivo + snapshot de followers.
     const updatePayload: Record<string, unknown> = restore
-      ? { archived_at: null, reactivation_eligible_at: null }
+      ? { playlist_type: restoreTo }
       : {
-          archived_at: new Date().toISOString(),
+          playlist_type: "ARCHIVED",
           archived_reason: "manual",
           archived_followers: mp?.followers ?? null,
         };
@@ -47,7 +50,7 @@ Deno.serve(async (req) => {
       .eq("id", id);
     if (error) return jr({ ok: false, error: error.message }, 500);
 
-    // Ao mandar pra lixeira, remove o cérebro/score pra não aparecer em KPIs,
+    // Ao mandar pra lixeira (ARCHIVED), remove o cérebro/score pra não aparecer em KPIs,
     // Matriz, recomendações etc. Quando restaurada, o brain-calc recria.
     if (!restore && mp?.canonical_playlist_id) {
       await Promise.all([
@@ -56,7 +59,7 @@ Deno.serve(async (req) => {
       ]);
     }
 
-    return jr({ ok: true, restored: restore });
+    return jr({ ok: true, restored: restore, playlist_type: restore ? restoreTo : "ARCHIVED" });
   } catch (e) {
     return jr({ ok: false, error: (e as Error).message }, 500);
   }
