@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
   let q = sb
     .from("managed_playlists")
     .select("id, spotify_playlist_id, name, owner_spotify_user_id")
-    .is("archived_at", null);
+    .neq("playlist_type", "ARCHIVED");
   if (!force) q = q.is("owner_spotify_user_id", null);
   const { data: pls, error: plErr } = await q;
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
