@@ -80,12 +80,13 @@ Deno.serve(async (req) => {
 
     const allGenreIds = [...genreScore.keys()];
 
-    // 2) buscar managed_playlists desses gêneros, não arquivadas
+    // 2) buscar managed_playlists CAMPAIGN desses gêneros
+    // (catálogo nunca participa de campanha)
     let q = sb
       .from("managed_playlists")
       .select("id, name, followers, genre_id, cover_url, spotify_url, spotify_playlist_id, curatorial_state, lifecycle_stage")
       .in("genre_id", allGenreIds)
-      .is("archived_at", null)
+      .eq("playlist_type", "CAMPAIGN")
       .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
       .order("followers", { ascending: false })
       .limit(500);
