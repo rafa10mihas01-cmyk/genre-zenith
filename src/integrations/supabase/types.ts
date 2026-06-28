@@ -13361,6 +13361,7 @@ export type Database = {
           id: string
           occupancy_engine_mode: string
           occupancy_executor_per_minute_limit: number
+          occupancy_max_daily_operations: number
           singleton_key: string
           updated_at: string
         }
@@ -13396,6 +13397,7 @@ export type Database = {
           id?: string
           occupancy_engine_mode?: string
           occupancy_executor_per_minute_limit?: number
+          occupancy_max_daily_operations?: number
           singleton_key?: string
           updated_at?: string
         }
@@ -13431,6 +13433,7 @@ export type Database = {
           id?: string
           occupancy_engine_mode?: string
           occupancy_executor_per_minute_limit?: number
+          occupancy_max_daily_operations?: number
           singleton_key?: string
           updated_at?: string
         }
