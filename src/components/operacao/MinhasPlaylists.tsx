@@ -249,7 +249,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         q = q.order("imported_at", { ascending: false });
       }
       if (showArchived) {
-        q = q.not("archived_at", "is", null);
+        q = q.eq("playlist_type", "ARCHIVED");
         if (onlyEligible) q = q.not("reactivation_eligible_at", "is", null);
         if (archiveType === "manual") {
           // "Arquivado" = bucket reservado pra arquivamentos explícitos futuros (reason = 'user_archive').
@@ -257,7 +257,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         }
         // Catálogo (default) = TODAS as arquivadas, sem filtro de reason.
       } else {
-        q = q.is("archived_at", null);
+        q = q.neq("playlist_type", "ARCHIVED");
       }
 
       // Fase server-side — abas mutuamente exclusivas (cada playlist cai em UMA só).
@@ -309,7 +309,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     queryFn: async () => {
       const { data, error } = await supabase
         .from("managed_playlists")
-        .select("id, followers, genre_id, archived_at, archived_reason, reactivation_eligible_at, lifecycle_phase")
+        .select("id, followers, genre_id, archived_at, playlist_type, archived_reason, reactivation_eligible_at, lifecycle_phase")
         .limit(5000);
       if (error) throw error;
       return (data ?? []) as CountRow[];
@@ -317,15 +317,15 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
     staleTime: 60_000,
   });
   const countRows = useMemo(() => countsQuery.data ?? [], [countsQuery.data]);
-  const totalActiveCount = countRows.filter((r) => !r.archived_at).length;
-  const totalArchivedCount = countRows.filter((r) => r.archived_at).length;
+  const totalActiveCount = countRows.filter((r) => r.playlist_type !== "ARCHIVED").length;
+  const totalArchivedCount = countRows.filter((r) => r.playlist_type === "ARCHIVED").length;
   const catalogCount = totalArchivedCount; // Catálogo = todas as arquivadas
-  const manualArchivedCount = countRows.filter((r) => r.archived_at && r.archived_reason === "user_archive").length;
+  const manualArchivedCount = countRows.filter((r) => r.playlist_type === "ARCHIVED" && r.archived_reason === "user_archive").length;
 
-  const eligibleCount = countRows.filter((r) => r.archived_at && r.reactivation_eligible_at).length;
+  const eligibleCount = countRows.filter((r) => r.playlist_type === "ARCHIVED" && r.reactivation_eligible_at).length;
 
   // Contagens por fase (catálogo ativo inteiro).
-  const activeRows = useMemo(() => countRows.filter((r) => !r.archived_at), [countRows]);
+  const activeRows = useMemo(() => countRows.filter((r) => r.playlist_type !== "ARCHIVED"), [countRows]);
   // Classificador mutuamente exclusivo — cada playlist cai em UMA aba só.
   // Hierarquia: Atenção > Prontas > Crescendo > Novas.
   const classifyFase = useCallback((r: CountRow): "prontas" | "crescendo" | "novas" | "atencao" | null => {
@@ -699,7 +699,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const [savingGenre, setSavingGenre] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [suggestProgress, setSuggestProgress] = useState<{ done: number; total: number } | null>(null);
-  const pendingSuggestionCount = items.filter(i => !i.archived_at && !i.genre_id && i.suggested_genre_id).length;
+  const pendingSuggestionCount = items.filter(i => i.playlist_type !== "ARCHIVED" && !i.genre_id && i.suggested_genre_id).length;
 
 
   async function runGenreSuggest() {
@@ -711,7 +711,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
         .from("managed_playlists")
         .select("id")
         .is("genre_id", null)
-        .is("archived_at", null);
+        .neq("playlist_type", "ARCHIVED");
       if (pendErr) throw pendErr;
       const ids = (pending ?? []).map((p) => p.id);
       if (!ids.length) {
@@ -835,10 +835,10 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }
 
   // Conta sempre o catálogo inteiro (countsQuery), não apenas a página carregada.
-  const missingGenreCount = countRows.filter((r) => !r.archived_at && !r.genre_id).length;
+  const missingGenreCount = countRows.filter((r) => r.playlist_type !== "ARCHIVED" && !r.genre_id).length;
 
   const visible = items
-    .filter((p) => (showArchived ? !!p.archived_at : !p.archived_at))
+    .filter((p) => (showArchived ? p.playlist_type === "ARCHIVED" : p.playlist_type !== "ARCHIVED"))
     .filter((p) => (filterMissingGenre ? !p.genre_id : true))
     .filter((p) => (filterGenreId ? p.genre_id === filterGenreId : true))
     .filter((p) => (filterAppBlocked ? blockedSet.has(p.id) : true))
@@ -947,7 +947,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }
 
   async function emptyTrash() {
-    const archivedCount = items.filter(i => i.archived_at).length;
+    const archivedCount = items.filter(i => i.playlist_type === "ARCHIVED").length;
     if (archivedCount === 0) return;
     // Dupla confirmação: primeiro aviso + segundo passo exigindo digitar EXCLUIR.
     if (!confirm(`Atenção: ${archivedCount} playlist(s) arquivadas serão APAGADAS PERMANENTEMENTE.\n\nEsta ação não pode ser desfeita. Deseja continuar?`)) return;
@@ -968,7 +968,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   }
 
   // KPI agregados sobre as playlists visíveis (não-arquivadas)
-  const activeItems = items.filter(i => !i.archived_at);
+  const activeItems = items.filter(i => i.playlist_type !== "ARCHIVED");
   const scoreRows = activeItems
     .map(i => i.canonical_playlist_id ? scores[i.canonical_playlist_id] : null)
     .filter(Boolean) as PlaylistScoreRow[];
@@ -978,7 +978,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
   const topPerf = scoreRows.filter(s => s.health_score >= 70).length;
 
   // Reflete filtros de gênero nos KPIs do topo
-  const visibleActive = visible.filter(p => !p.archived_at);
+  const visibleActive = visible.filter(p => p.playlist_type !== "ARCHIVED");
   const filteredFollowers = visibleActive.reduce((s, p) => s + (p.followers ?? 0), 0);
   const filteredCount = visibleActive.length;
   const filterLabel = filterMissingGenre
@@ -1711,7 +1711,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
             </button>
           )}
 
-          {showArchived && items.filter(i => i.archived_at).length > 0 && (
+          {showArchived && items.filter(i => i.playlist_type === "ARCHIVED").length > 0 && (
             <Button
               onClick={emptyTrash}
               variant="outline"
@@ -2240,7 +2240,7 @@ export function MinhasPlaylists({ onStats }: { onStats?: (s: PlaylistStats) => v
 
                 {/* Ações de arquivo (separadas, secundárias) */}
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                  {drawerPl.archived_at ? (
+                  {(drawerPl.playlist_type === "ARCHIVED") ? (
                     <>
                       <Button variant="outline" size="sm" onClick={() => archive(drawerPl, true)} className="gap-1.5">
                         <ArchiveRestore className="h-4 w-4" /> Restaurar
