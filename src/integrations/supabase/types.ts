@@ -15207,6 +15207,7 @@ export type Database = {
           third_party_max_pct: number
         }[]
       }
+      fn_sanitize_catalog_pending: { Args: { p_limit?: number }; Returns: Json }
       force_close_spotify_circuit_breaker: {
         Args: { p_app_id: string; p_context?: string }
         Returns: Json
