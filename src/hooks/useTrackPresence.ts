@@ -52,11 +52,11 @@ export function useTrackPresence(spotifyTrackId: string | null | undefined) {
     setError(null);
     (async () => {
       try {
-        // 1) Todas as managed_playlists ativas.
+        // 1) Todas as managed_playlists não arquivadas (campanha + catálogo).
         const { data: playlists, error: plErr } = await supabase
           .from("managed_playlists")
           .select("id, name, followers, genre_id, lifecycle_phase")
-          .is("archived_at", null)
+          .neq("playlist_type", "ARCHIVED")
           .limit(2000);
         if (plErr) throw plErr;
         // 2) Onde a track aparece (latest snapshot por playlist).
