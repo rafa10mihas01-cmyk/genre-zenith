@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
         .from("managed_playlists")
         .select("genre_id")
         .not("genre_id", "is", null)
-        .is("archived_at", null);
+        .neq("playlist_type", "ARCHIVED");
       const ids = Array.from(new Set((mp ?? []).map((r: any) => r.genre_id))).slice(0, 25);
       const results = await Promise.all(ids.map((id) => buildHealth(supabase, id).catch((e) => ({
         genre_id: id,
