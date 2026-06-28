@@ -25,6 +25,10 @@ import {
   removePlaylistTracks,
 } from "../_shared/spotify-playlist.ts";
 import { backoffSecondsForAttempt } from "../_shared/playlist-queue.ts";
+import {
+  mptInsertFromCatalog,
+  mptRemoveFromCatalog,
+} from "../_shared/managed-tracks-writer.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -372,22 +376,21 @@ async function runCatalogPlacements(sb: any, limit: number) {
   }
 
   async function persistLocalInsert(playlistId: string, trackId: string) {
-    // Apenas registra existência local. Posição é confirmada pelo sync.
-    await sb.from("managed_playlist_tracks")
-      .upsert({
-        playlist_id: playlistId,
-        spotify_track_id: trackId,
-        added_at: new Date().toISOString(),
-      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: true })
-      .then(() => {}, () => {});
+    // Refatoração definitiva (28/06/2026): grava linha CANÔNICA em
+    // managed_playlist_tracks no mesmo formato do sync (track_name,
+    // artist_name, album_cover, position, added_at, duration_ms, isrc).
+    // Invalida tracks_hash da playlist para o próximo sync reconciliar.
+    await mptInsertFromCatalog(sb, {
+      playlist_id: playlistId,
+      spotify_track_id: trackId,
+    });
   }
 
   async function persistLocalRemove(playlistId: string, trackId: string) {
-    await sb.from("managed_playlist_tracks")
-      .delete()
-      .eq("playlist_id", playlistId)
-      .eq("spotify_track_id", trackId)
-      .then(() => {}, () => {});
+    await mptRemoveFromCatalog(sb, {
+      playlist_id: playlistId,
+      spotify_track_id: trackId,
+    });
   }
 
   for (const p of enriched) {
