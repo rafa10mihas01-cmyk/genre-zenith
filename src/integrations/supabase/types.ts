@@ -14040,6 +14040,9 @@ export type Database = {
             | null
           playlist_followers: number | null
           playlist_name: string | null
+          playlist_type:
+            | Database["public"]["Enums"]["playlist_type_enum"]
+            | null
           position_observed_at: string | null
           scheduled_for: string | null
           spotify_playlist_id: string | null

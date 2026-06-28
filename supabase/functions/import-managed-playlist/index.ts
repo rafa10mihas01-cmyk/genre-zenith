@@ -88,10 +88,10 @@ Deno.serve(async (req) => {
     if (canonicalError) return jr({ ok: false, error: canonicalError.message }, 500);
 
     // Verifica se já existe (pra decidir se aplica auto-arquivamento de onboarding e
-    // pra não clobber archived_at/metadata em re-imports).
+    // pra não clobber playlist_type/metadata em re-imports).
     const { data: existing } = await supabase
       .from("managed_playlists")
-      .select("id, archived_at, metadata, locked_at")
+      .select("id, playlist_type, metadata, locked_at")
       .eq("spotify_playlist_id", playlistId)
       .maybeSingle();
 
@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
       metadata: { source: "import-managed-playlist" },
     };
     if (shouldAutoArchive) {
-      payload.archived_at = now;
+      payload.playlist_type = "ARCHIVED";
       payload.archived_reason = "auto_onboarding_low_followers";
       payload.archived_followers = followers;
     }

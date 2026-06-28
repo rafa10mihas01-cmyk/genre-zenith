@@ -237,8 +237,8 @@ export function PlanejadorMeta({ initial }: { initial?: PlanejadorInitial } = {}
       const [pl, gr] = await Promise.all([
         supabase
           .from("managed_playlists")
-          .select("id, name, cover_url, followers, tracks_count, genre_id, archived_at")
-          .is("archived_at", null),
+          .select("id, name, cover_url, followers, tracks_count, genre_id, playlist_type")
+          .neq("playlist_type", "ARCHIVED"),
         supabase.from("genres").select("id, nome").order("nome"),
       ]);
       const genreMap = new Map(((gr.data ?? []) as any[]).map(g => [g.id, g.nome]));

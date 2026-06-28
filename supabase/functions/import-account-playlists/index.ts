@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
     const { data: existingManaged } = owned.length > 0
       ? await supabase
         .from("managed_playlists")
-        .select("spotify_playlist_id, genre_id, canonical_playlist_id, archived_at, metadata, locked_at")
+        .select("spotify_playlist_id, genre_id, canonical_playlist_id, playlist_type, metadata, locked_at")
         .in("spotify_playlist_id", owned.map((p) => p.id))
       : { data: [] as any[] };
     const existingBySpotifyId = new Map(
@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
         },
       };
       if (shouldAutoArchive) {
-        payload.archived_at = nowIso;
+        payload.playlist_type = "ARCHIVED";
         payload.archived_reason = "auto_onboarding_low_followers";
         payload.archived_followers = followersNum;
       }
@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
       const { data: upserted, error } = await supabase
         .from("managed_playlists")
         .upsert(payload, { onConflict: "spotify_playlist_id" })
-        .select("id, lifecycle_stage, archived_at")
+        .select("id, lifecycle_stage, playlist_type")
         .maybeSingle();
       if (error) {
         skipped++;
@@ -286,7 +286,7 @@ Deno.serve(async (req) => {
         imported++;
         if (upserted?.id) {
           importedIds.push(upserted.id);
-          if (!upserted?.archived_at) activeImportedIds.push(upserted.id);
+          if (upserted?.playlist_type !== "ARCHIVED") activeImportedIds.push(upserted.id);
         }
         snapshotInserts.push({
           playlist_spotify_id: p.id,
@@ -295,7 +295,7 @@ Deno.serve(async (req) => {
         });
         // Dispara onboarding-check só pra playlists em onboarding QUE NÃO nasceram arquivadas.
         // Playlist auto-arquivada não consome ciclos de onboarding até ser reativada manualmente.
-        if (upserted?.id && upserted?.lifecycle_stage === "onboarding" && !upserted?.archived_at) {
+        if (upserted?.id && upserted?.lifecycle_stage === "onboarding" && upserted?.playlist_type !== "ARCHIVED") {
           fetch(`${SUPABASE_URL}/functions/v1/playlist-onboarding-check`, {
             method: "POST",
             headers: {

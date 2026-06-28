@@ -30,7 +30,7 @@ type ManagedRow = {
   name: string;
   cover_url: string | null;
   spotify_url: string | null;
-  archived_at: string | null;
+  playlist_type: string | null;
   followers: number | null;
 };
 
@@ -96,7 +96,7 @@ type PlacementJoined = {
     name: string | null;
     cover_url: string | null;
     spotify_url: string | null;
-    archived_at: string | null;
+    playlist_type: string | null;
     followers: number | null;
   } | null;
   catalog_tracks: { id: string; spotify_track_id: string | null } | null;
@@ -107,7 +107,7 @@ async function fetchPlacementsJoined(): Promise<PlacementJoined[]> {
     .from("catalog_placements")
     .select(
       `id, managed_playlist_id, catalog_track_id, status, added_at, removed_at,
-       managed_playlists ( id, spotify_playlist_id, name, cover_url, spotify_url, archived_at, followers ),
+       managed_playlists ( id, spotify_playlist_id, name, cover_url, spotify_url, playlist_type, followers ),
        catalog_tracks ( id, spotify_track_id )`,
     )
     .in("status", ["active", "removed"])
@@ -338,7 +338,7 @@ export function EnginePriorityTab() {
         removed_tracks: removed,
         last_delivery: lastCollectionAt ?? last_delivery,
         status,
-        archived: !!mp?.archived_at,
+        archived: mp?.playlist_type === "ARCHIVED",
         growth_delta: null,
         exact_tracks: exactTracks.size,
       });

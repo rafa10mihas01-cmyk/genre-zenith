@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
             .from("managed_playlists")
             .select("id, name, spotify_playlist_id, spotify_url, followers, cover_url")
             .eq("curator_id", curatorId)
-            .is("archived_at", null)
+            .neq("playlist_type", "ARCHIVED")
             .order("followers", { ascending: false, nullsFirst: false })
             .limit(500)
         : null;

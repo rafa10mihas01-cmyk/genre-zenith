@@ -28,7 +28,7 @@ export function OperationalAlertsCard() {
         supabase
           .from("managed_playlists")
           .select("id", { count: "exact", head: true })
-          .is("archived_at", null)
+          .neq("playlist_type", "ARCHIVED")
           .or(`last_diagnosis_at.is.null,last_diagnosis_at.lt.${sevenDaysAgo}`),
         supabase
           .from("collection_logs")

@@ -71,11 +71,11 @@ Deno.serve(async (req) => {
   try {
     const { data: managed } = await supa
       .from("managed_playlists")
-      .select("id, archived_at, diagnose_blocked, last_diagnosis_at, followers")
+      .select("id, playlist_type, diagnose_blocked, last_diagnosis_at, followers")
       .eq("spotify_playlist_id", playlistId)
       .maybeSingle();
 
-    if (managed && !managed.archived_at && !managed.diagnose_blocked) {
+    if (managed && managed.playlist_type !== "ARCHIVED" && !managed.diagnose_blocked) {
       const cutoff = Date.now() - DIAGNOSE_THROTTLE_HOURS * 3600 * 1000;
       const last = managed.last_diagnosis_at ? new Date(managed.last_diagnosis_at).getTime() : 0;
       if (!managed.last_diagnosis_at || last < cutoff) {
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     } else {
       enqueue = {
         attempted: false,
-        reason: !managed ? "not_managed" : managed.archived_at ? "archived" : "diagnose_blocked",
+        reason: !managed ? "not_managed" : managed.playlist_type === "ARCHIVED" ? "archived" : "diagnose_blocked",
       };
     }
   } catch (e) {

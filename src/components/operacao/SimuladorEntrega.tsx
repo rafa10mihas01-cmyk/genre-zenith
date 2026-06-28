@@ -73,8 +73,8 @@ export function SimuladorEntrega() {
       setLoading(true);
       const { data } = await supabase
         .from("managed_playlists")
-        .select("id, name, cover_url, followers, tracks_count, archived_at")
-        .is("archived_at", null)
+        .select("id, name, cover_url, followers, tracks_count, playlist_type")
+        .neq("playlist_type", "ARCHIVED")
         .order("followers", { ascending: false });
       setItems(((data ?? []) as any[]).map(d => ({
         id: d.id,

@@ -116,7 +116,7 @@ export default function Operacao() {
         .limit(2000),
       supabase.from("genres").select("id,nome").limit(500),
       supabase.from("accounts").select("status,current_playlists,max_playlists").limit(500),
-      supabase.from("managed_playlists").select("followers").is("archived_at", null).limit(5000),
+      supabase.from("managed_playlists").select("followers").neq("playlist_type", "ARCHIVED").limit(5000),
     ]);
 
 

@@ -20,7 +20,7 @@ export default function Home() {
     let cancelled = false;
     async function load() {
       const [mp, deals, notif] = await Promise.all([
-        supabase.from("managed_playlists").select("id", { count: "exact", head: true }).is("archived_at", null),
+        supabase.from("managed_playlists").select("id", { count: "exact", head: true }).neq("playlist_type", "ARCHIVED"),
         supabase.from("curator_deals").select("id", { count: "exact", head: true }).is("closed_at", null),
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("read", false),
       ]);

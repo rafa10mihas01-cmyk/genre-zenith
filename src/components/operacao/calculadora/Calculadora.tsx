@@ -405,7 +405,7 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
       const { data: playlistsRaw, error } = await supabase
         .from("managed_playlists")
         .select("id, followers, genre_id")
-        .is("archived_at", null);
+        .neq("playlist_type", "ARCHIVED");
       if (error) throw error;
 
       // Não descarta playlist pequena: se for do gênero primário, soma capacidade.

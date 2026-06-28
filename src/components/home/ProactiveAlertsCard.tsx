@@ -86,7 +86,7 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
     pIds.length
       ? supabase
           .from("managed_playlists")
-          .select("id, name, canonical_playlist_id, archived_at")
+          .select("id, name, canonical_playlist_id, playlist_type")
           .in("canonical_playlist_id", pIds)
       : Promise.resolve({ data: [] as any[] }),
   ]);
@@ -145,7 +145,7 @@ async function fetchProactiveAlerts(): Promise<AlertItem[]> {
   }
 
   for (const p of pls) {
-    if (p.archived_at) continue;
+    if ((p as any).playlist_type === "ARCHIVED") continue;
     const b = pBrains.find((x) => x.playlist_id === p.canonical_playlist_id);
     out.push({
       id: `sat-${p.id}`,
