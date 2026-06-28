@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       const { count } = await supabase
         .from("managed_playlists")
         .select("id", { count: "exact", head: true })
-        .is("archived_at", null)
+        .neq("playlist_type", "ARCHIVED")
         .or("tracks_count.is.null,tracks_count.eq.0");
       remaining = count ?? 0;
     }
