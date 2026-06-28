@@ -124,9 +124,9 @@ Deno.serve(async (req) => {
       if ("status" in meta) {
         if (meta.status === 404 && managedIdSet.has(target.spotify_playlist_id)) {
           await supabase.from("managed_playlists")
-            .update({ archived_at: new Date().toISOString(), archived_reason: "spotify_404" })
+            .update({ playlist_type: "ARCHIVED", archived_reason: "spotify_404" })
             .eq("spotify_playlist_id", target.spotify_playlist_id)
-            .is("archived_at", null);
+            .neq("playlist_type", "ARCHIVED");
           auto_archived++;
           console.log(`[track-playlist-metrics] auto-archived 404 ${target.spotify_playlist_id}`);
           continue;
