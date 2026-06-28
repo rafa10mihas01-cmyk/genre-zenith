@@ -100,7 +100,7 @@ export function useEcoRealCapacity(
           .from("managed_playlists")
           .select("id, name, followers, genre_id")
           .in("genre_id", allGenreIds)
-          .is("archived_at", null)
+          .eq("playlist_type", "CAMPAIGN")
           .gt("followers", 0);
 
         const rows = (playlists ?? []) as Array<{ id: string; name: string; followers: number; genre_id: string }>;

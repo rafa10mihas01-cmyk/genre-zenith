@@ -36,7 +36,7 @@ export function useEcosystemSnapshot(): EcosystemSnapshot {
           supabase
             .from("managed_playlists")
             .select("id,name,followers,genre_id")
-            .is("archived_at", null)
+            .eq("playlist_type", "CAMPAIGN")
             .limit(5000),
           supabase.from("genres").select("id,nome").limit(500),
           supabase

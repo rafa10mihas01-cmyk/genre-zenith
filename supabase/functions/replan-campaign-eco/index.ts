@@ -171,12 +171,12 @@ Deno.serve(async (req) => {
   const [affLo, affHi] = AFFINITY_RANGE_BY_MODE[mode];
   console.log("[replan] coverage", { existingTotalPlanned, metaEco, coverageRatio, mode, affinityRange: [affLo, affHi] });
 
-  // 3) Candidatas PRIMÁRIAS: managed_playlists do mesmo gênero, ativas, fora do plano
+  // 3) Candidatas PRIMÁRIAS: managed_playlists CAMPAIGN do mesmo gênero, fora do plano
   const { data: candidatePls, error: cErr } = await admin
     .from("managed_playlists")
     .select("id, followers, genre_id")
     .eq("genre_id", primaryGenreId)
-    .is("archived_at", null)
+    .eq("playlist_type", "CAMPAIGN")
     .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
     .order("followers", { ascending: false });
   if (cErr) return json({ ok: false, error: cErr.message }, 500);
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
       .from("managed_playlists")
       .select("id, followers, genre_id")
       .in("genre_id", neighborGenreIds)
-      .is("archived_at", null)
+      .eq("playlist_type", "CAMPAIGN")
       .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
       .order("followers", { ascending: false });
     if (nErr) return json({ ok: false, error: nErr.message }, 500);
