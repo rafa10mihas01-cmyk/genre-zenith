@@ -338,9 +338,9 @@ Deno.serve(async (req) => {
             // Auto-archive 404 em managed → para de poluir o status
             if (e.status === 404 && managedIds.has(t.id)) {
               await sb.from("managed_playlists")
-                .update({ archived_at: new Date().toISOString(), archived_reason: "spotify_404" })
+                .update({ playlist_type: "ARCHIVED", archived_reason: "spotify_404" })
                 .eq("spotify_playlist_id", t.id)
-                .is("archived_at", null);
+                .neq("playlist_type", "ARCHIVED");
               auto_archived++;
               console.log(`[snapshot] auto-archived 404 playlist ${t.id}`);
               continue;
