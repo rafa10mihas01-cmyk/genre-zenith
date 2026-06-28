@@ -376,22 +376,21 @@ async function runCatalogPlacements(sb: any, limit: number) {
   }
 
   async function persistLocalInsert(playlistId: string, trackId: string) {
-    // Apenas registra existência local. Posição é confirmada pelo sync.
-    await sb.from("managed_playlist_tracks")
-      .upsert({
-        playlist_id: playlistId,
-        spotify_track_id: trackId,
-        added_at: new Date().toISOString(),
-      }, { onConflict: "playlist_id,spotify_track_id", ignoreDuplicates: true })
-      .then(() => {}, () => {});
+    // Refatoração definitiva (28/06/2026): grava linha CANÔNICA em
+    // managed_playlist_tracks no mesmo formato do sync (track_name,
+    // artist_name, album_cover, position, added_at, duration_ms, isrc).
+    // Invalida tracks_hash da playlist para o próximo sync reconciliar.
+    await mptInsertFromCatalog(sb, {
+      playlist_id: playlistId,
+      spotify_track_id: trackId,
+    });
   }
 
   async function persistLocalRemove(playlistId: string, trackId: string) {
-    await sb.from("managed_playlist_tracks")
-      .delete()
-      .eq("playlist_id", playlistId)
-      .eq("spotify_track_id", trackId)
-      .then(() => {}, () => {});
+    await mptRemoveFromCatalog(sb, {
+      playlist_id: playlistId,
+      spotify_track_id: trackId,
+    });
   }
 
   for (const p of enriched) {
