@@ -347,14 +347,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    // FASE 4 — Enfileira rebuild SHADOW do Occupancy Engine após sincronização completa
+    // ARQUITETURA SÍNCRONA (28/06/2026) — não há mais Occupancy Engine permanente.
+    // Única exceção permitida pelo sync: se uma faixa do catálogo foi removida
+    // manualmente do Spotify (apareceu em toDeleteIds), reabre o catalog_placement
+    // correspondente como `pending` (reason='external_removal') para o
+    // catalog-executor redistribuir no próximo ciclo. Nada além disso.
     try {
-      await supabase.rpc("fn_enqueue_occupancy_rebuild", {
-        p_playlist_id: pl.id,
-        p_trigger_source: "sync_completed",
-        p_payload: { tracks_changed: tracksChanged, total: spotifyRows.length },
-      });
-    } catch (_) { /* não bloqueia a sync */ }
+      if (toDeleteIds.length > 0) {
+        const { data: catalogTracks } = await supabase
+          .from("catalog_tracks")
+          .select("id, spotify_track_id")
+          .in("spotify_track_id", toDeleteIds);
+        const catalogTrackIds = (catalogTracks ?? []).map((r: any) => r.id);
+        if (catalogTrackIds.length > 0) {
+          await supabase
+            .from("catalog_placements")
+            .update({
+              status: "pending",
+              skip_reason: "external_removal",
+              skipped_at: new Date().toISOString(),
+              last_error_code: "external_removal",
+              scheduled_for: new Date().toISOString(),
+              locked_at: null,
+              locked_by: null,
+              lease_expires_at: null,
+            })
+            .eq("managed_playlist_id", pl.id)
+            .in("catalog_track_id", catalogTrackIds)
+            .eq("status", "active");
+        }
+      }
+    } catch (e) {
+      console.warn("[sync] external_removal check falhou:", (e as Error)?.message);
+    }
     return jr({
       ok: true,
       total: spotifyRows.length,
