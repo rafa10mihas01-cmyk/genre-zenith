@@ -60,7 +60,7 @@ type Placement = {
   scheduled_for: string;
   attempts: number;
   last_error_code: string | null;
-  managed_playlists: { name: string; cover_url: string | null; followers: number | null; spotify_playlist_id: string | null; archived_at: string | null; execution_mode: string | null } | null;
+  managed_playlists: { name: string; cover_url: string | null; followers: number | null; spotify_playlist_id: string | null; playlist_type: string | null; execution_mode: string | null } | null;
 };
 type Attribution = {
   spotify_playlist_id: string;
@@ -96,7 +96,7 @@ async function fetchDetail(id: string) {
   const [trackRes, telemetryRes, placementsRes, attributionRes, snapshotsRes, batchesRes] = await Promise.all([
     supabase.from("catalog_tracks").select("id, spotify_track_id, track_name, artist_name, cover_url, isrc, status, added_at").eq("id", id).maybeSingle(),
     supabase.from("v_catalog_track_telemetry").select("baseline_at, baseline_plays_28d, last_captured_at, last_plays_28d, growth_abs, growth_pct, playlists_present_count, total_plays_7d_from_playlists, snapshots_count").eq("catalog_track_id", id).maybeSingle(),
-    supabase.from("v_catalog_placement_live").select("id, status, current_position, entry_position, added_at, scheduled_for, attempts, last_error_code, managed_playlist_id, playlist_name, playlist_cover_url, playlist_followers, spotify_playlist_id, playlist_archived_at, playlist_execution_mode").eq("catalog_track_id", id).order("status", { ascending: true }),
+    supabase.from("v_catalog_placement_live").select("id, status, current_position, entry_position, added_at, scheduled_for, attempts, last_error_code, managed_playlist_id, playlist_name, playlist_cover_url, playlist_followers, spotify_playlist_id, playlist_type, playlist_execution_mode").eq("catalog_track_id", id).order("status", { ascending: true }),
     supabase.from("v_catalog_track_playlist_attribution").select("spotify_playlist_id, name, owner, spotify_url, first_seen_at, last_seen_at, observations, current_position, current_plays_7d, status").eq("catalog_track_id", id).order("current_plays_7d", { ascending: false, nullsFirst: false }),
     supabase.from("song_snapshots").select("id, captured_at, total_plays_28d, processing_error").eq("catalog_track_id", id).order("captured_at", { ascending: true }).limit(60),
     supabase.from("catalog_distribution_batches").select("id, created_at, total_eligible_playlists, skipped_already_present, skipped_no_capacity, placements_created").eq("catalog_track_id", id).order("created_at", { ascending: false }).limit(50),
@@ -125,7 +125,7 @@ async function fetchDetail(id: string) {
         cover_url: r.playlist_cover_url,
         followers: r.playlist_followers,
         spotify_playlist_id: r.spotify_playlist_id,
-        archived_at: r.playlist_archived_at,
+        playlist_type: r.playlist_type,
         execution_mode: r.playlist_execution_mode,
       },
     })) as Placement[],
@@ -268,7 +268,7 @@ function sortPlacementsGroup(items: Placement[]) {
 }
 
 function isOperationalPlacement(p: Placement) {
-  return !p.managed_playlists?.archived_at && p.managed_playlists?.execution_mode !== "DISABLED";
+  return p.managed_playlists?.playlist_type !== "ARCHIVED" && p.managed_playlists?.execution_mode !== "DISABLED";
 }
 
 function MobilePlacementsSummary({ summary }: { summary: ReturnType<typeof summarizePlacementsGroup> }) {

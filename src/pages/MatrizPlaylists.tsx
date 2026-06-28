@@ -48,10 +48,10 @@ export default function MatrizPlaylists({ embedded = false }: { embedded?: boole
       const { data, error } = await supabase
         .from("playlist_brain")
         .select(
-          "playlist_id, headroom_pct, confidence_score, health_trend, signals, managed_playlists!inner ( name, cover_url, archived_at )",
+          "playlist_id, headroom_pct, confidence_score, health_trend, signals, managed_playlists!inner ( name, cover_url, playlist_type )",
         )
         .not("headroom_pct", "is", null)
-        .is("managed_playlists.archived_at", null);
+        .neq("managed_playlists.playlist_type", "ARCHIVED");
       if (error) throw error;
       return (data ?? [])
         .map((r: any) => ({
