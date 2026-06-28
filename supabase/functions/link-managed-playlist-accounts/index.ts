@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       .from("managed_playlists")
       .select("id, spotify_playlist_id, metadata")
       .is("account_id", null)
-      .is("archived_at", null);
+      .neq("playlist_type", "ARCHIVED");
 
     const list = pls ?? [];
     if (list.length === 0) {

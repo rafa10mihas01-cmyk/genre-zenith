@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     const { data: pls, error } = await sb
       .from("managed_playlists")
       .select("id, spotify_playlist_id, name, followers, archived_followers")
-      .not("archived_at", "is", null)
+      .eq("playlist_type", "ARCHIVED")
       .is("reactivation_eligible_at", null)
       .order("last_metrics_at", { ascending: true, nullsFirst: true })
       .limit(limit);

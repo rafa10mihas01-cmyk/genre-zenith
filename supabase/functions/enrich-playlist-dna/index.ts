@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
   // Carrega meta das playlists
   const { data: playlistsMeta } = await supabase
     .from("managed_playlists")
-    .select("id, name, description, followers, archived_at")
+    .select("id, name, description, followers, playlist_type")
     .in("id", playlistIds);
   const metaById = new Map((playlistsMeta ?? []).map((p: any) => [p.id, p]));
 

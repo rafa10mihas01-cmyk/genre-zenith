@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
   // Carrega estado mínimo da playlist (tracks_hash atual + versões de referência)
   const { data: mp, error: mpErr } = await sb
     .from("managed_playlists")
-    .select("id, tracks_hash, archived_at")
+    .select("id, tracks_hash, playlist_type")
     .eq("id", playlistId)
     .maybeSingle();
   if (mpErr) return jr({ ok: false, error: `managed_playlists_lookup: ${mpErr.message}` }, 500);

@@ -88,13 +88,13 @@ async function calcOne(supabase: any, playlistId: string) {
 
   const { data: mgd } = await supabase
     .from("managed_playlists")
-    .select("id, name, genre_id, tracks_count, followers, last_diagnosis_at, last_metrics_at, metadata, archived_at")
+    .select("id, name, genre_id, tracks_count, followers, last_diagnosis_at, last_metrics_at, metadata, playlist_type")
     .eq("spotify_playlist_id", pl.spotify_playlist_id)
     .maybeSingle();
 
   // Se a playlist está arquivada (lixeira), não calcula cérebro — ela some
   // de KPIs, Matriz, recomendações etc. Volta quando restaurada.
-  if (mgd?.archived_at) {
+  if (mgd?.playlist_type === "ARCHIVED") {
     await supabase.from("playlist_brain").delete().eq("playlist_id", canonicalId);
     return { skipped: true, reason: "archived" };
   }
@@ -556,8 +556,8 @@ Deno.serve(async (req) => {
       try {
         const { data: managedRows, error: mErr } = await supabase
           .from("managed_playlists")
-          .select("id, canonical_playlist_id, spotify_playlist_id, archived_at")
-          .is("archived_at", null);
+          .select("id, canonical_playlist_id, spotify_playlist_id, playlist_type")
+          .neq("playlist_type", "ARCHIVED");
         if (mErr) throw new Error(mErr.message);
 
         const list = (managedRows ?? []).map((row: any) => ({

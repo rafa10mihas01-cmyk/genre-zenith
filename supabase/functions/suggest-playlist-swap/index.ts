@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     const genreIds = genrePool.map(g => g.genre_id);
     let candidatesQuery = sb
       .from("managed_playlists")
-      .select("id, name, cover_url, followers, genre_id, archived_at")
+      .select("id, name, cover_url, followers, genre_id, playlist_type")
       .eq("playlist_type", "CAMPAIGN")
       .limit(200);
     if (genreIds.length > 0) candidatesQuery = candidatesQuery.in("genre_id", genreIds);

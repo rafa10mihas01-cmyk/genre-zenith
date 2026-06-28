@@ -613,7 +613,7 @@ Deno.serve(async (req) => {
     ? await supabase
         .from("managed_playlists")
         .select("id, spotify_playlist_id, spotify_url, name, followers")
-        .is("archived_at", null)
+        .neq("playlist_type", "ARCHIVED")
     : { data: [] as any[] };
   const managedById = new Map<string, any>();
   const managedByName = new Map<string, any>();
