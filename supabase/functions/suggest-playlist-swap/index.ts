@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     let candidatesQuery = sb
       .from("managed_playlists")
       .select("id, name, cover_url, followers, genre_id, archived_at")
-      .is("archived_at", null)
+      .eq("playlist_type", "CAMPAIGN")
       .limit(200);
     if (genreIds.length > 0) candidatesQuery = candidatesQuery.in("genre_id", genreIds);
     const { data: rawCandidates, error: cErr } = await candidatesQuery;
