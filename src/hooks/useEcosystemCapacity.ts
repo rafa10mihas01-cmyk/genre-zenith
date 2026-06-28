@@ -109,7 +109,7 @@ export function useEcosystemCapacity(
       const { data: playlistsRaw } = await supabase
         .from("managed_playlists")
         .select("id, followers, genre_id")
-        .is("archived_at", null);
+        .eq("playlist_type", "CAMPAIGN");
       const all = (playlistsRaw ?? []).filter(p => (p.followers ?? 0) >= 100) as
         { id: string; followers: number | null; genre_id: string | null }[];
 
