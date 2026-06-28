@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     let query = supabase
       .from("managed_playlists")
       .select("id, spotify_playlist_id, tracks_count")
-      .is("archived_at", null)
+      .neq("playlist_type", "ARCHIVED")
       .order("imported_at", { ascending: true, nullsFirst: true })
       .limit(limit);
     if (onlyZero) {
