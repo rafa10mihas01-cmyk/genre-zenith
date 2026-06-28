@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     const { data: mp } = await supabase
       .from("managed_playlists")
       .select("spotify_playlist_id")
-      .is("archived_at", null)
+      .neq("playlist_type", "ARCHIVED")
       .not("spotify_playlist_id", "is", null)
       .limit(body.limit ?? 200);
     managed = (mp ?? []) as ManagedRow[];
