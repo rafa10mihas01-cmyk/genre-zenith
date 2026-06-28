@@ -68,12 +68,12 @@ Deno.serve(async (req) => {
   //   → playlist-queue-processor → sync-managed-playlist-tracks
   //
   // Diferenças vs operational:
-  //   - filtra archived_at IS NOT NULL (catálogo);
+  //   - filtra playlist_type = 'CATALOG' (sync de catálogo);
   //   - lote pequeno (system_flags.catalog_sync_batch_size);
   //   - prioridade baixa (system_flags.catalog_sync_priority);
   //   - NÃO chama fetchMeta, brain-calc, updates em managed_playlists;
   //   - apenas enfileira AUTO_SYNC pra atualizar tracks/snapshot.
-  // Operacional intacto: arquivadas nunca entram em Hot/Warm/Cold.
+  // Operacional (default) usa playlist_type = 'CAMPAIGN'.
   // ─────────────────────────────────────────────────────────────────
   if (mode === "catalog") {
     try {
