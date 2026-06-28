@@ -2300,6 +2300,30 @@ export type Database = {
           },
         ]
       }
+      catalog_distribution_counters: {
+        Row: {
+          count: number
+          day: string
+          scope: string
+          scope_id: string
+          updated_at: string
+        }
+        Insert: {
+          count?: number
+          day: string
+          scope: string
+          scope_id?: string
+          updated_at?: string
+        }
+        Update: {
+          count?: number
+          day?: string
+          scope?: string
+          scope_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       catalog_distribution_plan_targets: {
         Row: {
           catalog_track_id: string
@@ -13391,6 +13415,8 @@ export type Database = {
           auto_deal_from_campaign: boolean
           catalog_executor_per_minute_limit: number
           catalog_max_daily_distributions: number
+          catalog_max_daily_per_app: number
+          catalog_max_daily_per_owner: number
           catalog_sync_batch_size: number
           catalog_sync_enabled: boolean
           catalog_sync_priority: number
@@ -13424,6 +13450,8 @@ export type Database = {
           auto_deal_from_campaign?: boolean
           catalog_executor_per_minute_limit?: number
           catalog_max_daily_distributions?: number
+          catalog_max_daily_per_app?: number
+          catalog_max_daily_per_owner?: number
           catalog_sync_batch_size?: number
           catalog_sync_enabled?: boolean
           catalog_sync_priority?: number
@@ -13457,6 +13485,8 @@ export type Database = {
           auto_deal_from_campaign?: boolean
           catalog_executor_per_minute_limit?: number
           catalog_max_daily_distributions?: number
+          catalog_max_daily_per_app?: number
+          catalog_max_daily_per_owner?: number
           catalog_sync_batch_size?: number
           catalog_sync_enabled?: boolean
           catalog_sync_priority?: number
