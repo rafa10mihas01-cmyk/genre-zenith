@@ -78,26 +78,16 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // FASE 6 — Cutover Primary: motor antigo desligado quando occupancy_engine_mode='primary'.
-  // Permanece como contingência operacional; basta voltar a flag para 'dual_write' para reativar.
-  try {
-    const { data: flagRow } = await sb
-      .from("system_flags")
-      .select("occupancy_engine_mode")
-      .limit(1)
-      .maybeSingle();
-    const mode = String(flagRow?.occupancy_engine_mode ?? "shadow").toLowerCase();
-    if (mode === "primary") {
-      return jr({
-        ok: true,
-        skipped: true,
-        reason: "occupancy_engine_primary",
-        engine_mode: mode,
-      });
-    }
-  } catch (_e) {
-    // se a leitura falhar, deixa o worker seguir o fluxo legado para não travar contingência
-  }
+  // DEPRECADO (28/06/2026) — A distribuição agora passa exclusivamente pelo
+  // `occupancy-executor` (renomeado conceitualmente para catalog-executor) que
+  // usa `fn_decide_placement_action` síncrono. Este endpoint permanece apenas
+  // para responder cron/health checks históricos sem quebrar, mas não executa
+  // nada para evitar dupla competição pela mesma fila.
+  return jr({
+    ok: true,
+    skipped: true,
+    reason: "deprecated_use_catalog_executor",
+  });
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty body allowed */ }
