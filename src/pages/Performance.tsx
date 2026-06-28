@@ -63,7 +63,7 @@ export default function Performance() {
         supabase
           .from("managed_playlists")
           .select("id, genre_id, name, spotify_playlist_id, spotify_url, followers, tracks_count, imported_at, updated_at, last_metrics_at")
-          .is("archived_at", null)
+          .eq("playlist_type", "CAMPAIGN")
           .order("imported_at", { ascending: false }),
         supabase.from("genres").select("id, nome").order("nome"),
         supabase
