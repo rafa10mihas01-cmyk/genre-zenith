@@ -22,6 +22,7 @@ type ItemLite = {
   cover_url: string | null;
   genre_id: string | null;
   archived_at: string | null;
+  playlist_type: string | null;
   imported_at: string;
   last_maintenance_at?: string | null;
   lifecycle_stage?: "onboarding" | "testing" | "mature" | null;
@@ -97,7 +98,7 @@ export function MaintenanceCalendarDialog({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [activeBucket, setActiveBucket] = useState<Bucket | "all">("all");
 
-  const activeItems = useMemo(() => items.filter(i => !i.archived_at), [items]);
+  const activeItems = useMemo(() => items.filter(i => i.playlist_type !== "ARCHIVED"), [items]);
   const genreMap = useMemo(() => Object.fromEntries(genres.map(g => [g.id, g.nome])), [genres]);
 
   useEffect(() => {
