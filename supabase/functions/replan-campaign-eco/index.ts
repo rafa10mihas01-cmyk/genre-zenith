@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
       .from("managed_playlists")
       .select("id, followers, genre_id")
       .in("genre_id", neighborGenreIds)
-      .is("archived_at", null)
+      .eq("playlist_type", "CAMPAIGN")
       .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
       .order("followers", { ascending: false });
     if (nErr) return json({ ok: false, error: nErr.message }, 500);
