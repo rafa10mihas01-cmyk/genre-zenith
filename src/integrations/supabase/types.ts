@@ -485,6 +485,20 @@ export type Database = {
             foreignKeyName: "analysis_snapshots_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -1424,6 +1438,20 @@ export type Database = {
             foreignKeyName: "campaign_eco_allocations_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_allocations_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -1518,6 +1546,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_eco_snapshots_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "campaign_eco_snapshots_managed_playlist_id_fkey"
@@ -2345,6 +2387,20 @@ export type Database = {
             foreignKeyName: "catalog_distribution_plan_targets_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_distribution_plan_targets_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -2573,6 +2629,20 @@ export type Database = {
             foreignKeyName: "catalog_placement_execution_log_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placement_execution_log_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placement_execution_log_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -2714,6 +2784,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
@@ -5745,6 +5829,20 @@ export type Database = {
             foreignKeyName: "engine_occupancy_proposals_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engine_occupancy_proposals_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -7546,6 +7644,20 @@ export type Database = {
             foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -7558,6 +7670,7 @@ export type Database = {
           archived_followers: number | null
           archived_reason: string | null
           campaign_reserved_slots: number
+          campaign_reserved_top_n: number
           canonical_playlist_id: string | null
           catalog_capacity: number
           cover_url: string | null
@@ -7597,6 +7710,7 @@ export type Database = {
           onboarding_ready_streak: number
           operational_status: string | null
           owner_spotify_user_id: string | null
+          playlist_type: Database["public"]["Enums"]["playlist_type_enum"]
           reactivation_eligible_at: string | null
           recommended_change_count: number | null
           spotify_playlist_id: string
@@ -7615,6 +7729,7 @@ export type Database = {
           archived_followers?: number | null
           archived_reason?: string | null
           campaign_reserved_slots?: number
+          campaign_reserved_top_n?: number
           canonical_playlist_id?: string | null
           catalog_capacity?: number
           cover_url?: string | null
@@ -7654,6 +7769,7 @@ export type Database = {
           onboarding_ready_streak?: number
           operational_status?: string | null
           owner_spotify_user_id?: string | null
+          playlist_type?: Database["public"]["Enums"]["playlist_type_enum"]
           reactivation_eligible_at?: string | null
           recommended_change_count?: number | null
           spotify_playlist_id: string
@@ -7672,6 +7788,7 @@ export type Database = {
           archived_followers?: number | null
           archived_reason?: string | null
           campaign_reserved_slots?: number
+          campaign_reserved_top_n?: number
           canonical_playlist_id?: string | null
           catalog_capacity?: number
           cover_url?: string | null
@@ -7711,6 +7828,7 @@ export type Database = {
           onboarding_ready_streak?: number
           operational_status?: string | null
           owner_spotify_user_id?: string | null
+          playlist_type?: Database["public"]["Enums"]["playlist_type_enum"]
           reactivation_eligible_at?: string | null
           recommended_change_count?: number | null
           spotify_playlist_id?: string
@@ -8712,6 +8830,20 @@ export type Database = {
             foreignKeyName: "plan_execution_snapshots_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_execution_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_execution_snapshots_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -8790,6 +8922,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_adjustment_impacts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_adjustment_impacts_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "playlist_adjustment_impacts_playlist_id_fkey"
@@ -9201,6 +9347,20 @@ export type Database = {
             foreignKeyName: "playlist_cooldowns_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_cooldowns_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_cooldowns_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -9328,6 +9488,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_diagnoses_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_diagnoses_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "playlist_diagnoses_playlist_id_fkey"
@@ -9473,6 +9647,20 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_dna_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: true
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "playlist_dna_playlist_id_fkey"
@@ -9846,6 +10034,20 @@ export type Database = {
             foreignKeyName: "fk_pds_playlist"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pds_playlist"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pds_playlist"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -10003,6 +10205,20 @@ export type Database = {
             foreignKeyName: "playlist_editorial_policies_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: true
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_editorial_policies_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: true
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_editorial_policies_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: true
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -10138,6 +10354,20 @@ export type Database = {
             columns: ["playlist_spotify_id"]
             isOneToOne: false
             referencedRelation: "v_catalog_placement_live"
+            referencedColumns: ["spotify_playlist_id"]
+          },
+          {
+            foreignKeyName: "fk_pfs_playlist"
+            columns: ["playlist_spotify_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["spotify_playlist_id"]
+          },
+          {
+            foreignKeyName: "fk_pfs_playlist"
+            columns: ["playlist_spotify_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
             referencedColumns: ["spotify_playlist_id"]
           },
           {
@@ -10521,6 +10751,20 @@ export type Database = {
             foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
             columns: ["playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_operation_queue_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -10571,6 +10815,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_policy_alerts_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_policy_alerts_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "playlist_policy_alerts_managed_playlist_id_fkey"
@@ -10729,6 +10987,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "playlist_seo_experiments_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_seo_experiments_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "playlist_seo_experiments_playlist_id_fkey"
@@ -13828,6 +14100,20 @@ export type Database = {
             foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -14338,6 +14624,488 @@ export type Database = {
         }
         Relationships: []
       }
+      v_managed_playlists_active: {
+        Row: {
+          account_id: string | null
+          archived_at: string | null
+          archived_followers: number | null
+          archived_reason: string | null
+          campaign_reserved_slots: number | null
+          campaign_reserved_top_n: number | null
+          canonical_playlist_id: string | null
+          catalog_capacity: number | null
+          cover_url: string | null
+          created_at: string | null
+          curator_id: string | null
+          curatorial_state:
+            | Database["public"]["Enums"]["curatorial_state"]
+            | null
+          description: string | null
+          diagnose_403_streak: number | null
+          diagnose_blocked: boolean | null
+          diagnose_blocked_at: string | null
+          diagnose_blocked_reason: string | null
+          engagement_multiplier_override: number | null
+          execution_mode:
+            | Database["public"]["Enums"]["playlist_execution_mode"]
+            | null
+          followers: number | null
+          genre_id: string | null
+          id: string | null
+          imported_at: string | null
+          imported_by: string | null
+          is_catalog: boolean | null
+          last_diagnosis_at: string | null
+          last_maintenance_at: string | null
+          last_maintenance_intensity:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
+          last_metrics_at: string | null
+          last_onboarding_check_at: string | null
+          lifecycle_phase: string | null
+          lifecycle_phase_updated_at: string | null
+          lifecycle_stage: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_change_pct: number | null
+          metadata: Json | null
+          name: string | null
+          onboarding_checklist: Json | null
+          onboarding_completed_at: string | null
+          onboarding_ready_streak: number | null
+          operational_status: string | null
+          owner_spotify_user_id: string | null
+          playlist_type:
+            | Database["public"]["Enums"]["playlist_type_enum"]
+            | null
+          reactivation_eligible_at: string | null
+          recommended_change_count: number | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          suggested_at: string | null
+          suggested_genre_id: string | null
+          suggestion_confidence: number | null
+          suggestion_reason: string | null
+          tracks_count: number | null
+          tracks_hash: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          archived_at?: string | null
+          archived_followers?: number | null
+          archived_reason?: string | null
+          campaign_reserved_slots?: number | null
+          campaign_reserved_top_n?: number | null
+          canonical_playlist_id?: string | null
+          catalog_capacity?: number | null
+          cover_url?: string | null
+          created_at?: string | null
+          curator_id?: string | null
+          curatorial_state?:
+            | Database["public"]["Enums"]["curatorial_state"]
+            | null
+          description?: string | null
+          diagnose_403_streak?: number | null
+          diagnose_blocked?: boolean | null
+          diagnose_blocked_at?: string | null
+          diagnose_blocked_reason?: string | null
+          engagement_multiplier_override?: number | null
+          execution_mode?:
+            | Database["public"]["Enums"]["playlist_execution_mode"]
+            | null
+          followers?: number | null
+          genre_id?: string | null
+          id?: string | null
+          imported_at?: string | null
+          imported_by?: string | null
+          is_catalog?: boolean | null
+          last_diagnosis_at?: string | null
+          last_maintenance_at?: string | null
+          last_maintenance_intensity?:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
+          last_metrics_at?: string | null
+          last_onboarding_check_at?: string | null
+          lifecycle_phase?: string | null
+          lifecycle_phase_updated_at?: string | null
+          lifecycle_stage?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_change_pct?: number | null
+          metadata?: Json | null
+          name?: string | null
+          onboarding_checklist?: Json | null
+          onboarding_completed_at?: string | null
+          onboarding_ready_streak?: number | null
+          operational_status?: string | null
+          owner_spotify_user_id?: string | null
+          playlist_type?:
+            | Database["public"]["Enums"]["playlist_type_enum"]
+            | null
+          reactivation_eligible_at?: string | null
+          recommended_change_count?: number | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          suggested_at?: string | null
+          suggested_genre_id?: string | null
+          suggestion_confidence?: number | null
+          suggestion_reason?: string | null
+          tracks_count?: number | null
+          tracks_hash?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          archived_at?: string | null
+          archived_followers?: number | null
+          archived_reason?: string | null
+          campaign_reserved_slots?: number | null
+          campaign_reserved_top_n?: number | null
+          canonical_playlist_id?: string | null
+          catalog_capacity?: number | null
+          cover_url?: string | null
+          created_at?: string | null
+          curator_id?: string | null
+          curatorial_state?:
+            | Database["public"]["Enums"]["curatorial_state"]
+            | null
+          description?: string | null
+          diagnose_403_streak?: number | null
+          diagnose_blocked?: boolean | null
+          diagnose_blocked_at?: string | null
+          diagnose_blocked_reason?: string | null
+          engagement_multiplier_override?: number | null
+          execution_mode?:
+            | Database["public"]["Enums"]["playlist_execution_mode"]
+            | null
+          followers?: number | null
+          genre_id?: string | null
+          id?: string | null
+          imported_at?: string | null
+          imported_by?: string | null
+          is_catalog?: boolean | null
+          last_diagnosis_at?: string | null
+          last_maintenance_at?: string | null
+          last_maintenance_intensity?:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
+          last_metrics_at?: string | null
+          last_onboarding_check_at?: string | null
+          lifecycle_phase?: string | null
+          lifecycle_phase_updated_at?: string | null
+          lifecycle_stage?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_change_pct?: number | null
+          metadata?: Json | null
+          name?: string | null
+          onboarding_checklist?: Json | null
+          onboarding_completed_at?: string | null
+          onboarding_ready_streak?: number | null
+          operational_status?: string | null
+          owner_spotify_user_id?: string | null
+          playlist_type?:
+            | Database["public"]["Enums"]["playlist_type_enum"]
+            | null
+          reactivation_eligible_at?: string | null
+          recommended_change_count?: number | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          suggested_at?: string | null
+          suggested_genre_id?: string | null
+          suggestion_confidence?: number | null
+          suggestion_reason?: string | null
+          tracks_count?: number | null
+          tracks_hash?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_playlists_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_suggested_genre_id_fkey"
+            columns: ["suggested_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_suggested_genre_id_fkey"
+            columns: ["suggested_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_managed_playlists_campaign: {
+        Row: {
+          account_id: string | null
+          archived_at: string | null
+          archived_followers: number | null
+          archived_reason: string | null
+          campaign_reserved_slots: number | null
+          campaign_reserved_top_n: number | null
+          canonical_playlist_id: string | null
+          catalog_capacity: number | null
+          cover_url: string | null
+          created_at: string | null
+          curator_id: string | null
+          curatorial_state:
+            | Database["public"]["Enums"]["curatorial_state"]
+            | null
+          description: string | null
+          diagnose_403_streak: number | null
+          diagnose_blocked: boolean | null
+          diagnose_blocked_at: string | null
+          diagnose_blocked_reason: string | null
+          engagement_multiplier_override: number | null
+          execution_mode:
+            | Database["public"]["Enums"]["playlist_execution_mode"]
+            | null
+          followers: number | null
+          genre_id: string | null
+          id: string | null
+          imported_at: string | null
+          imported_by: string | null
+          is_catalog: boolean | null
+          last_diagnosis_at: string | null
+          last_maintenance_at: string | null
+          last_maintenance_intensity:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
+          last_metrics_at: string | null
+          last_onboarding_check_at: string | null
+          lifecycle_phase: string | null
+          lifecycle_phase_updated_at: string | null
+          lifecycle_stage: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_change_pct: number | null
+          metadata: Json | null
+          name: string | null
+          onboarding_checklist: Json | null
+          onboarding_completed_at: string | null
+          onboarding_ready_streak: number | null
+          operational_status: string | null
+          owner_spotify_user_id: string | null
+          playlist_type:
+            | Database["public"]["Enums"]["playlist_type_enum"]
+            | null
+          reactivation_eligible_at: string | null
+          recommended_change_count: number | null
+          spotify_playlist_id: string | null
+          spotify_url: string | null
+          suggested_at: string | null
+          suggested_genre_id: string | null
+          suggestion_confidence: number | null
+          suggestion_reason: string | null
+          tracks_count: number | null
+          tracks_hash: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          archived_at?: string | null
+          archived_followers?: number | null
+          archived_reason?: string | null
+          campaign_reserved_slots?: number | null
+          campaign_reserved_top_n?: number | null
+          canonical_playlist_id?: string | null
+          catalog_capacity?: number | null
+          cover_url?: string | null
+          created_at?: string | null
+          curator_id?: string | null
+          curatorial_state?:
+            | Database["public"]["Enums"]["curatorial_state"]
+            | null
+          description?: string | null
+          diagnose_403_streak?: number | null
+          diagnose_blocked?: boolean | null
+          diagnose_blocked_at?: string | null
+          diagnose_blocked_reason?: string | null
+          engagement_multiplier_override?: number | null
+          execution_mode?:
+            | Database["public"]["Enums"]["playlist_execution_mode"]
+            | null
+          followers?: number | null
+          genre_id?: string | null
+          id?: string | null
+          imported_at?: string | null
+          imported_by?: string | null
+          is_catalog?: boolean | null
+          last_diagnosis_at?: string | null
+          last_maintenance_at?: string | null
+          last_maintenance_intensity?:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
+          last_metrics_at?: string | null
+          last_onboarding_check_at?: string | null
+          lifecycle_phase?: string | null
+          lifecycle_phase_updated_at?: string | null
+          lifecycle_stage?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_change_pct?: number | null
+          metadata?: Json | null
+          name?: string | null
+          onboarding_checklist?: Json | null
+          onboarding_completed_at?: string | null
+          onboarding_ready_streak?: number | null
+          operational_status?: string | null
+          owner_spotify_user_id?: string | null
+          playlist_type?:
+            | Database["public"]["Enums"]["playlist_type_enum"]
+            | null
+          reactivation_eligible_at?: string | null
+          recommended_change_count?: number | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          suggested_at?: string | null
+          suggested_genre_id?: string | null
+          suggestion_confidence?: number | null
+          suggestion_reason?: string | null
+          tracks_count?: number | null
+          tracks_hash?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          archived_at?: string | null
+          archived_followers?: number | null
+          archived_reason?: string | null
+          campaign_reserved_slots?: number | null
+          campaign_reserved_top_n?: number | null
+          canonical_playlist_id?: string | null
+          catalog_capacity?: number | null
+          cover_url?: string | null
+          created_at?: string | null
+          curator_id?: string | null
+          curatorial_state?:
+            | Database["public"]["Enums"]["curatorial_state"]
+            | null
+          description?: string | null
+          diagnose_403_streak?: number | null
+          diagnose_blocked?: boolean | null
+          diagnose_blocked_at?: string | null
+          diagnose_blocked_reason?: string | null
+          engagement_multiplier_override?: number | null
+          execution_mode?:
+            | Database["public"]["Enums"]["playlist_execution_mode"]
+            | null
+          followers?: number | null
+          genre_id?: string | null
+          id?: string | null
+          imported_at?: string | null
+          imported_by?: string | null
+          is_catalog?: boolean | null
+          last_diagnosis_at?: string | null
+          last_maintenance_at?: string | null
+          last_maintenance_intensity?:
+            | Database["public"]["Enums"]["curatorial_action_type"]
+            | null
+          last_metrics_at?: string | null
+          last_onboarding_check_at?: string | null
+          lifecycle_phase?: string | null
+          lifecycle_phase_updated_at?: string | null
+          lifecycle_stage?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_change_pct?: number | null
+          metadata?: Json | null
+          name?: string | null
+          onboarding_checklist?: Json | null
+          onboarding_completed_at?: string | null
+          onboarding_ready_streak?: number | null
+          operational_status?: string | null
+          owner_spotify_user_id?: string | null
+          playlist_type?:
+            | Database["public"]["Enums"]["playlist_type_enum"]
+            | null
+          reactivation_eligible_at?: string | null
+          recommended_change_count?: number | null
+          spotify_playlist_id?: string | null
+          spotify_url?: string | null
+          suggested_at?: string | null
+          suggested_genre_id?: string | null
+          suggestion_confidence?: number | null
+          suggestion_reason?: string | null
+          tracks_count?: number | null
+          tracks_hash?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "managed_playlists_canonical_playlist_id_fkey"
+            columns: ["canonical_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "curators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_balance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_curator_id_fkey"
+            columns: ["curator_id"]
+            isOneToOne: false
+            referencedRelation: "v_curator_finance"
+            referencedColumns: ["curator_id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_suggested_genre_id_fkey"
+            columns: ["suggested_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlists_suggested_genre_id_fkey"
+            columns: ["suggested_genre_id"]
+            isOneToOne: false
+            referencedRelation: "genres_with_health"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_placement_priority_latest: {
         Row: {
           artist_name: string | null
@@ -14397,6 +15165,20 @@ export type Database = {
             foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
             columns: ["managed_playlist_id"]
             isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "catalog_placements_managed_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
             referencedRelation: "v_playlist_vps_assignment"
             referencedColumns: ["managed_playlist_id"]
           },
@@ -14438,6 +15220,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_catalog_playlist_occupancy"
             referencedColumns: ["managed_playlist_id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
+            columns: ["managed_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "v_managed_playlists_campaign"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "managed_playlist_tracks_playlist_id_fkey"
@@ -15902,6 +16698,7 @@ export type Database = {
       notification_type: "critical" | "warning" | "info"
       organic_play_kind: "algorithmic" | "organic" | "editorial"
       playlist_execution_mode: "API_READY" | "MANUAL_ONLY" | "DISABLED"
+      playlist_type_enum: "CAMPAIGN" | "CATALOG" | "ARCHIVED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -16070,6 +16867,7 @@ export const Constants = {
       notification_type: ["critical", "warning", "info"],
       organic_play_kind: ["algorithmic", "organic", "editorial"],
       playlist_execution_mode: ["API_READY", "MANUAL_ONLY", "DISABLED"],
+      playlist_type_enum: ["CAMPAIGN", "CATALOG", "ARCHIVED"],
     },
   },
 } as const
