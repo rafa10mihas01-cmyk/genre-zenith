@@ -15407,6 +15407,10 @@ export type Database = {
         Args: { p_deal_id: string }
         Returns: number
       }
+      fn_decide_placement_action: {
+        Args: { p_placement_id: string }
+        Returns: Json
+      }
       fn_enqueue_catalog_test_snapshot: {
         Args: { p_catalog_track_id: string }
         Returns: {
