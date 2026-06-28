@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       const { data: archived, error: archErr } = await supabase
         .from("managed_playlists")
         .select("id, name, owner_spotify_user_id, account_id, execution_mode")
-        .not("archived_at", "is", null)
+        .eq("playlist_type", "CATALOG")
         .not("owner_spotify_user_id", "is", null)
         .not("account_id", "is", null)
         .neq("execution_mode", "MANUAL_ONLY")
