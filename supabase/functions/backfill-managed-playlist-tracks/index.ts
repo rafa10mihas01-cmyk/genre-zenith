@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
   const { data: all } = await sb
     .from("managed_playlists")
     .select("id, spotify_playlist_id")
-    .is("archived_at", null)
+    .neq("playlist_type", "ARCHIVED")
     .not("spotify_playlist_id", "is", null);
 
   const allIds = (all ?? []).map((r: any) => r.id);

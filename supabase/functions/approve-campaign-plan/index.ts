@@ -434,7 +434,7 @@ Deno.serve(async (req) => {
             .from("managed_playlists")
             .select("id, followers")
             .eq("genre_id", primaryGenreId)
-            .is("archived_at", null)
+            .eq("playlist_type", "CAMPAIGN")
             .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
             .order("followers", { ascending: false });
           const remainingPrimaryDaily = ((primaryCandidates ?? []) as any[])
@@ -456,7 +456,7 @@ Deno.serve(async (req) => {
                 .from("managed_playlists")
                 .select("id, followers, genre_id")
                 .in("genre_id", neighborGenreIds)
-                .is("archived_at", null)
+                .eq("playlist_type", "CAMPAIGN")
                 .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
                 .order("followers", { ascending: false })
             : { data: [] };
@@ -554,7 +554,7 @@ Deno.serve(async (req) => {
           .from("managed_playlists")
           .select("id, followers")
           .eq("genre_id", primaryGenreId)
-          .is("archived_at", null)
+          .eq("playlist_type", "CAMPAIGN")
           .gte("followers", MIN_PLAYLIST_SAVES_FOR_CAMPAIGN)
           .order("followers", { ascending: false })
           .limit(20);

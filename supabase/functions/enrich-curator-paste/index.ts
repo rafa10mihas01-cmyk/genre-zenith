@@ -237,11 +237,11 @@ Deno.serve(async (req) => {
       .filter((p) => p.match_status === "curator" || p.match_status === "baseline")
       .map((p) => p.playlist_name);
 
-    // Onda 1: carrega IDs do ecossistema ativo pra impedir gravar como curator_playlist.
+    // Onda 1: carrega IDs do ecossistema não arquivado pra impedir gravar como curator_playlist.
     const { data: ecoRows } = await supabase
       .from("managed_playlists")
       .select("spotify_playlist_id")
-      .is("archived_at", null);
+      .neq("playlist_type", "ARCHIVED");
     const ecoIds = new Set(
       (ecoRows ?? [])
         .map((r) => r.spotify_playlist_id)

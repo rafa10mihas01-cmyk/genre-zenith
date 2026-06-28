@@ -68,12 +68,12 @@ Deno.serve(async (req) => {
   //   → playlist-queue-processor → sync-managed-playlist-tracks
   //
   // Diferenças vs operational:
-  //   - filtra archived_at IS NOT NULL (catálogo);
+  //   - filtra playlist_type = 'CATALOG' (sync de catálogo);
   //   - lote pequeno (system_flags.catalog_sync_batch_size);
   //   - prioridade baixa (system_flags.catalog_sync_priority);
   //   - NÃO chama fetchMeta, brain-calc, updates em managed_playlists;
   //   - apenas enfileira AUTO_SYNC pra atualizar tracks/snapshot.
-  // Operacional intacto: arquivadas nunca entram em Hot/Warm/Cold.
+  // Operacional (default) usa playlist_type = 'CAMPAIGN'.
   // ─────────────────────────────────────────────────────────────────
   if (mode === "catalog") {
     try {
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
       const { data: archived, error: archErr } = await supabase
         .from("managed_playlists")
         .select("id, name, owner_spotify_user_id, account_id, execution_mode")
-        .not("archived_at", "is", null)
+        .eq("playlist_type", "CATALOG")
         .not("owner_spotify_user_id", "is", null)
         .not("account_id", "is", null)
         .neq("execution_mode", "MANUAL_ONLY")
@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
 
     let q = supabase.from("managed_playlists")
       .select("id, spotify_playlist_id, canonical_playlist_id, name, cover_url, owner_spotify_user_id, execution_mode")
-      .is("archived_at", null);
+      .eq("playlist_type", "CAMPAIGN");
     if (targetIds) {
       if (targetIds.length === 0) {
         // tier vazio: nada a processar

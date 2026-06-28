@@ -74,7 +74,7 @@ async function fetchAll(): Promise<Row[]> {
     supabase
       .from("managed_playlists")
       .select("id, spotify_playlist_id")
-      .is("archived_at", null)
+      .neq("playlist_type", "ARCHIVED")
       .limit(2000),
     supabase
       .from("v_catalog_track_playlist_attribution")

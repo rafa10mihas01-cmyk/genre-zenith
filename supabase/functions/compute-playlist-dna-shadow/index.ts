@@ -75,10 +75,10 @@ Deno.serve(async (req) => {
   const runId = runRow?.id as string;
 
   let q = supabase.from("managed_playlists")
-    .select("id, name, description, genre_id, archived_at")
+    .select("id, name, description, genre_id, archived_at, playlist_type")
     .order("imported_at", { ascending: true });
-  if (scope === "active") q = q.is("archived_at", null);
-  if (scope === "archived") q = q.not("archived_at", "is", null);
+  if (scope === "active") q = q.neq("playlist_type", "ARCHIVED");
+  if (scope === "archived") q = q.eq("playlist_type", "ARCHIVED");
   if (limit) q = q.limit(limit);
 
   const { data: playlists, error: plErr } = await q;

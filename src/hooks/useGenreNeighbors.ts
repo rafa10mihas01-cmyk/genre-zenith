@@ -51,12 +51,12 @@ export function useGenreNeighborsByPlaylist(managedId?: string, threshold = 0.5)
         .in("id", otherIds);
       const nameMap = new Map((gs ?? []).map((g) => [g.id, { nome: g.nome, slug: g.slug }]));
 
-      // contagem de managed_playlists por vizinho (ativas)
+      // contagem de managed_playlists por vizinho (não arquivadas)
       const { data: counts } = await supabase
         .from("managed_playlists")
         .select("genre_id")
         .in("genre_id", otherIds)
-        .is("archived_at", null);
+        .neq("playlist_type", "ARCHIVED");
       const countMap = new Map<string, number>();
       for (const c of counts ?? []) {
         countMap.set(c.genre_id, (countMap.get(c.genre_id) ?? 0) + 1);
