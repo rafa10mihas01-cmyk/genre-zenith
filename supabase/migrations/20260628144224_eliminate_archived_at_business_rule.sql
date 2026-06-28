@@ -157,7 +157,7 @@ BEGIN
   SELECT v_plan_id, _track_id, o.managed_playlist_id, 'pending', v_now
     FROM public.v_catalog_playlist_occupancy o
     JOIN public.managed_playlists mp ON mp.id = o.managed_playlist_id
-   WHERE o.playlist_type <> 'ARCHIVED'::public.playlist_type_enum
+   WHERE mp.playlist_type <> 'ARCHIVED'::public.playlist_type_enum
      AND o.available_slots > 0
      AND (v_track.genre_id IS NULL OR mp.genre_id IS NULL OR mp.genre_id = v_track.genre_id)
      AND NOT EXISTS (
@@ -217,7 +217,7 @@ BEGIN
       mp.genre_id
     FROM public.v_catalog_playlist_occupancy o
     JOIN public.managed_playlists mp ON mp.id = o.managed_playlist_id
-    WHERE o.playlist_type <> 'ARCHIVED'::public.playlist_type_enum
+    WHERE mp.playlist_type <> 'ARCHIVED'::public.playlist_type_enum
       AND o.available_slots > 0
       AND (p_playlist_id IS NULL OR o.managed_playlist_id = p_playlist_id)
       -- pula playlists com cooldown ativo de mexer em faixas
