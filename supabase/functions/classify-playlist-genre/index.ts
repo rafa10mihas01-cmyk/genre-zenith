@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
   let q = supabase
     .from("managed_playlists")
     .select("id, name, description, tracks_count")
-    .is("archived_at", null);
+    .neq("playlist_type", "ARCHIVED");
   if (onlyMissing) q = q.is("genre_id", null);
   if (playlistIds?.length) q = q.in("id", playlistIds);
   q = q.limit(500);
