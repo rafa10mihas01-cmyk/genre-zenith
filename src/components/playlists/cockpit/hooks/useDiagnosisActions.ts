@@ -202,7 +202,7 @@ export function useDiagnosisActions(args: {
     }
     // Atualiza cache local imediatamente (otimista) + invalida pra refetch ao chegar em /catalogo.
     queryClient.setQueryData<any[]>(["managed-playlists"], (prev) =>
-      (prev ?? []).map((p) => (p.id === managedId ? { ...p, archived_at: new Date().toISOString() } : p)),
+      (prev ?? []).map((p) => (p.id === managedId ? { ...p, playlist_type: "ARCHIVED", archived_at: new Date().toISOString() } : p)),
     );
     queryClient.invalidateQueries({ queryKey: ["managed-playlists"] });
     toast({ title: "Movida para lixeira", description: "Você pode restaurar em Catálogo › Lixeira." });

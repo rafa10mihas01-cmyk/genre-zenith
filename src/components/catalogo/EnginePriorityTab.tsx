@@ -30,7 +30,7 @@ type ManagedRow = {
   name: string;
   cover_url: string | null;
   spotify_url: string | null;
-  archived_at: string | null;
+  playlist_type: string | null;
   followers: number | null;
 };
 
