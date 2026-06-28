@@ -8220,224 +8220,6 @@ export type Database = {
         }
         Relationships: []
       }
-      occupancy_plan_ops: {
-        Row: {
-          attempts: number
-          classification: string | null
-          created_at: string
-          error: string | null
-          executed_at: string | null
-          from_position: number | null
-          id: string
-          op_status: string
-          op_type: string
-          payload: Json
-          plan_id: string
-          reason: string
-          spotify_track_id: string | null
-          to_position: number | null
-        }
-        Insert: {
-          attempts?: number
-          classification?: string | null
-          created_at?: string
-          error?: string | null
-          executed_at?: string | null
-          from_position?: number | null
-          id?: string
-          op_status?: string
-          op_type: string
-          payload?: Json
-          plan_id: string
-          reason: string
-          spotify_track_id?: string | null
-          to_position?: number | null
-        }
-        Update: {
-          attempts?: number
-          classification?: string | null
-          created_at?: string
-          error?: string | null
-          executed_at?: string | null
-          from_position?: number | null
-          id?: string
-          op_status?: string
-          op_type?: string
-          payload?: Json
-          plan_id?: string
-          reason?: string
-          spotify_track_id?: string | null
-          to_position?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "occupancy_plan_ops_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "occupancy_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      occupancy_plans: {
-        Row: {
-          block_reason: string | null
-          created_at: string
-          duration_ms: number | null
-          executed_at: string | null
-          executor_attempts: number
-          executor_error: string | null
-          executor_stats: Json | null
-          executor_status: string
-          finalized_at: string | null
-          id: string
-          managed_playlist_id: string
-          mode: string
-          ops_count: number
-          policy_snapshot: Json
-          spotify_snapshot_id: string | null
-          started_at: string | null
-          stats: Json
-          status: string
-          trigger_source: string | null
-        }
-        Insert: {
-          block_reason?: string | null
-          created_at?: string
-          duration_ms?: number | null
-          executed_at?: string | null
-          executor_attempts?: number
-          executor_error?: string | null
-          executor_stats?: Json | null
-          executor_status?: string
-          finalized_at?: string | null
-          id?: string
-          managed_playlist_id: string
-          mode?: string
-          ops_count?: number
-          policy_snapshot?: Json
-          spotify_snapshot_id?: string | null
-          started_at?: string | null
-          stats?: Json
-          status?: string
-          trigger_source?: string | null
-        }
-        Update: {
-          block_reason?: string | null
-          created_at?: string
-          duration_ms?: number | null
-          executed_at?: string | null
-          executor_attempts?: number
-          executor_error?: string | null
-          executor_stats?: Json | null
-          executor_status?: string
-          finalized_at?: string | null
-          id?: string
-          managed_playlist_id?: string
-          mode?: string
-          ops_count?: number
-          policy_snapshot?: Json
-          spotify_snapshot_id?: string | null
-          started_at?: string | null
-          stats?: Json
-          status?: string
-          trigger_source?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "occupancy_plans_managed_playlist_id_fkey"
-            columns: ["managed_playlist_id"]
-            isOneToOne: false
-            referencedRelation: "managed_playlists"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "occupancy_plans_managed_playlist_id_fkey"
-            columns: ["managed_playlist_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_playlist_occupancy"
-            referencedColumns: ["managed_playlist_id"]
-          },
-          {
-            foreignKeyName: "occupancy_plans_managed_playlist_id_fkey"
-            columns: ["managed_playlist_id"]
-            isOneToOne: false
-            referencedRelation: "v_playlist_vps_assignment"
-            referencedColumns: ["managed_playlist_id"]
-          },
-        ]
-      }
-      occupancy_rebuild_queue: {
-        Row: {
-          attempts: number
-          enqueued_at: string
-          finished_at: string | null
-          id: string
-          last_error: string | null
-          managed_playlist_id: string
-          payload: Json
-          plan_id: string | null
-          started_at: string | null
-          status: string
-          trigger_source: string
-        }
-        Insert: {
-          attempts?: number
-          enqueued_at?: string
-          finished_at?: string | null
-          id?: string
-          last_error?: string | null
-          managed_playlist_id: string
-          payload?: Json
-          plan_id?: string | null
-          started_at?: string | null
-          status?: string
-          trigger_source: string
-        }
-        Update: {
-          attempts?: number
-          enqueued_at?: string
-          finished_at?: string | null
-          id?: string
-          last_error?: string | null
-          managed_playlist_id?: string
-          payload?: Json
-          plan_id?: string | null
-          started_at?: string | null
-          status?: string
-          trigger_source?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "occupancy_rebuild_queue_managed_playlist_id_fkey"
-            columns: ["managed_playlist_id"]
-            isOneToOne: false
-            referencedRelation: "managed_playlists"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "occupancy_rebuild_queue_managed_playlist_id_fkey"
-            columns: ["managed_playlist_id"]
-            isOneToOne: false
-            referencedRelation: "v_catalog_playlist_occupancy"
-            referencedColumns: ["managed_playlist_id"]
-          },
-          {
-            foreignKeyName: "occupancy_rebuild_queue_managed_playlist_id_fkey"
-            columns: ["managed_playlist_id"]
-            isOneToOne: false
-            referencedRelation: "v_playlist_vps_assignment"
-            referencedColumns: ["managed_playlist_id"]
-          },
-          {
-            foreignKeyName: "occupancy_rebuild_queue_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "occupancy_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       organic_plays_snapshots: {
         Row: {
           captured_at: string
@@ -13359,9 +13141,6 @@ export type Database = {
           execution_frozen_reason: string | null
           execution_queue_internal_enabled: boolean
           id: string
-          occupancy_engine_mode: string
-          occupancy_executor_per_minute_limit: number
-          occupancy_max_daily_operations: number
           singleton_key: string
           updated_at: string
         }
@@ -13395,9 +13174,6 @@ export type Database = {
           execution_frozen_reason?: string | null
           execution_queue_internal_enabled?: boolean
           id?: string
-          occupancy_engine_mode?: string
-          occupancy_executor_per_minute_limit?: number
-          occupancy_max_daily_operations?: number
           singleton_key?: string
           updated_at?: string
         }
@@ -13431,9 +13207,6 @@ export type Database = {
           execution_frozen_reason?: string | null
           execution_queue_internal_enabled?: boolean
           id?: string
-          occupancy_engine_mode?: string
-          occupancy_executor_per_minute_limit?: number
-          occupancy_max_daily_operations?: number
           singleton_key?: string
           updated_at?: string
         }
@@ -14565,35 +14338,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_occupancy_executor_metrics: {
-        Row: {
-          avg_rebuild_ms: number | null
-          bucket: string | null
-          executed: number | null
-          executor_status: string | null
-          failed: number | null
-          mode: string | null
-          ops_total: number | null
-          partial: number | null
-          plans: number | null
-        }
-        Relationships: []
-      }
-      v_occupancy_rebuild_metrics: {
-        Row: {
-          avg_ms: number | null
-          blocked: number | null
-          bucket: string | null
-          errors: number | null
-          executed: number | null
-          no_change: number | null
-          pending: number | null
-          processing: number | null
-          total: number | null
-          trigger_source: string | null
-        }
-        Relationships: []
-      }
       v_placement_priority_latest: {
         Row: {
           artist_name: string | null
@@ -15407,6 +15151,10 @@ export type Database = {
         Args: { p_deal_id: string }
         Returns: number
       }
+      fn_decide_placement_action: {
+        Args: { p_placement_id: string }
+        Returns: Json
+      }
       fn_enqueue_catalog_test_snapshot: {
         Args: { p_catalog_track_id: string }
         Returns: {
@@ -15418,23 +15166,6 @@ export type Database = {
           status: string
         }[]
       }
-      fn_enqueue_occupancy_rebuild: {
-        Args: {
-          p_payload?: Json
-          p_playlist_id: string
-          p_trigger_source: string
-        }
-        Returns: string
-      }
-      fn_occupancy_claim_executable_plans: {
-        Args: { p_limit?: number }
-        Returns: {
-          managed_playlist_id: string
-          mode: string
-          ops_count: number
-          plan_id: string
-        }[]
-      }
       fn_playlist_delivery_accumulated: {
         Args: { p_campaign_id: string }
         Returns: {
@@ -15444,32 +15175,6 @@ export type Database = {
           last_reading_at: string
           playlist_id: string
           readings_count: number
-        }[]
-      }
-      fn_playlist_occupancy_rebuild: {
-        Args: {
-          p_mode?: string
-          p_playlist_id: string
-          p_trigger_source?: string
-        }
-        Returns: string
-      }
-      fn_playlist_occupancy_rebuild_batch: {
-        Args: { p_limit?: number; p_policy_type?: string }
-        Returns: {
-          plan_id: string
-          playlist_id: string
-        }[]
-      }
-      fn_process_occupancy_rebuild_queue: {
-        Args: { p_limit?: number }
-        Returns: {
-          duration_ms: number
-          ops: number
-          plan_id: string
-          playlist_id: string
-          queue_id: string
-          result_status: string
         }[]
       }
       fn_promote_waiting_circuit_breaker_to_pending: {
