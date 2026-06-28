@@ -43,11 +43,11 @@ Deno.serve(async (req) => {
       .delete({ count: "exact" })
       .lt("captured_at", cutoffISO);
 
-    // 1. MINIMUM: todas as managed_playlists (com spotify_playlist_id) NÃO arquivadas
+    // 1. MINIMUM: todas as managed_playlists (com spotify_playlist_id) não arquivadas
     const { data: managed } = await sb
       .from("managed_playlists")
       .select("spotify_playlist_id, owner_spotify_user_id")
-      .is("archived_at", null)
+      .neq("playlist_type", "ARCHIVED")
       .not("spotify_playlist_id", "is", null);
     const managedIds = new Set<string>((managed ?? []).map((m: any) => m.spotify_playlist_id));
     // Mapa spotify_playlist_id → owner_spotify_user_id (pra escolher user token).
