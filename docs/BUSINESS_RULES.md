@@ -3,16 +3,18 @@
 ## Delivery
 
 **Delivery da campanha é a entrega acumulada atribuída desde a baseline.
-Baseline não gera entrega. Upload diário (`last_24h`/`last_day`) representa a
-entrega daquele dia e entra integralmente. Leitura de janela móvel só entra
-pelo crescimento positivo contra a leitura anterior.**
+O primeiro upload válido de cada playlist é sempre a baseline/ponto de partida
+e não gera entrega. Dali pra frente, todo upload válido entra em sequência e
+soma. Upload diário (`last_24h`/`last_day`) representa a entrega daquele envio
+e entra integralmente. Leitura de janela móvel só entra pelo crescimento
+positivo contra a leitura anterior.**
 
 Fórmula canônica:
 
 ```
 delta_playlist_leitura =
-  0                                  se leitura é baseline
-  plays_7d                           se leitura é upload diário
+  0                                  se é o primeiro upload válido da playlist
+  plays_7d                           se upload posterior é diário
   max(0, plays_7d − leitura_anterior) se leitura é janela móvel
 
 delivery_playlist = SUM(delta_playlist_leitura)
@@ -25,14 +27,17 @@ Detalhes técnicos em `docs/DELIVERY_ENGINE.md`. Implementação em
 
 ## Baseline
 
-- 1 baseline por playlist por campanha (`campaign_playlist_collections.is_baseline=true`).
-- Quando múltiplas linhas marcadas, vale a mais recente por `reference_date`.
-- Sem baseline marcada → primeira leitura pós-baseline entra como entrega.
+- O primeiro upload válido de cada playlist por campanha é a baseline real.
+- `campaign_playlist_collections.is_baseline=true` continua aceito, mas não pode
+  excluir uploads posteriores.
+- Sem marca explícita de baseline, a primeira leitura válida vira baseline e gera delta 0.
 
 ## Blindagem conceitual
 
 - Proibido trocar o cálculo para High-Water Mark absoluto.
-- Proibido somar snapshots superseded ou uploads em quarentena.
+- Proibido deduplicar upload por `reference_date`.
+- Proibido excluir upload válido por `status='superseded'`; esse status virou legado histórico.
+- Proibido somar uploads em quarentena.
 - Proibido usar mais de uma fonte matemática: a fonte única é
   `fn_playlist_delivery_accumulated`.
 
@@ -41,11 +46,12 @@ Detalhes técnicos em `docs/DELIVERY_ENGINE.md`. Implementação em
 `campaigns.canonical_window_days` define qual `window_days` participa do
 cálculo. Snapshots com `window_days` diferente são ignorados.
 
-## Dedup de uploads
+## Sequência de uploads
 
-Apenas 1 upload ativo por `(deal_id, reference_date)`. Uploads anteriores
-do mesmo dia são automaticamente marcados `status='superseded'` por trigger
-e excluídos de todo cálculo. Ver `docs/audits/UPLOAD_DEDUP_BENCHMARK.md`.
+Não existe dedup por `(deal_id, reference_date)`. Se o operador envia três
+planilhas no mesmo dia ou com a mesma data de referência, são três referências
+sequenciais válidas e todas entram na soma depois da baseline. A ordem oficial
+é a ordem de chegada (`label_spreadsheet_uploads.created_at`).
 
 ## Atribuição
 

@@ -2374,22 +2374,13 @@ export default function CuratorPage() {
               </div>
             ) : (
               (() => {
-                // Ordenar por reference_date desc; sem ref, usa created_at. Dedup por reference_date.
+                // Ordenar por chegada do upload. Não existe dedup por reference_date.
                 const sorted = [...uploads].sort((a, b) => {
-                  const ra = a.reference_date ?? a.created_at;
-                  const rb = b.reference_date ?? b.created_at;
-                  return rb.localeCompare(ra);
-                });
-                const seen = new Set<string>();
-                const unique = sorted.filter((u) => {
-                  const key = u.reference_date ?? u.id;
-                  if (seen.has(key)) return false;
-                  seen.add(key);
-                  return true;
+                  return b.created_at.localeCompare(a.created_at);
                 });
                 return (
                   <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1 -mr-1 scroll-smooth [mask-image:linear-gradient(to_bottom,black_calc(100%-24px),transparent)]">
-                    {unique.map((u) => {
+                    {sorted.map((u) => {
                       const refLabel = u.reference_date
                         ? formatDate(u.reference_date)
                         : formatDate(u.created_at);
