@@ -1585,8 +1585,9 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
                             "font-medium tabular-nums",
                             ecoOverflow ? "text-destructive" : ecoUsagePct >= 90 ? "text-amber-600 dark:text-amber-400" : "text-primary",
                           )}>
-                            {ecoUsagePct}% usado
+                            {ecoUsagePct}% {ecoOverflow ? "da capacidade" : "usado"}
                           </span>
+
                         </div>
                         {(() => {
                           const days = result.effectiveDays || 1;
