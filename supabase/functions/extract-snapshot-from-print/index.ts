@@ -565,7 +565,7 @@ Deno.serve(async (req) => {
     const position = Number.isFinite(pos) && pos > 0 ? pos : (i + 1);
     const item: DomItem = {
       id,
-      url: d.url ?? "",
+      url: rawUrl ?? (id && !id.startsWith("algo:") ? `https://open.spotify.com/playlist/${id}` : ""),
       name,
       position,
       plays: playsNum,
