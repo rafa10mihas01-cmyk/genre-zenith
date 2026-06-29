@@ -1307,7 +1307,22 @@ Deno.serve(async (req) => {
   // 3.9. Fase 1.A.1 — baseline oficial vai exclusivamente para
   // `campaign_playlist_collections` via writer compartilhado.
   // Sem campaign_id → skip estruturado em bot_events. Nada em legado.
-  if (isBaseline) {
+  // Para campaign_internal, se a baseline em `campaign_playlist_collections`
+  // ainda não existe (ex.: primeiras tentativas falharam por whitelist vazia),
+  // permitimos rodar a baseline mesmo quando não é mais o primeiro batch.
+  let shouldRunBaseline = isBaseline;
+  if (!shouldRunBaseline && isCampaignInternal && ecoCampaignId) {
+    const { count: baselineCount } = await supabase
+      .from("campaign_playlist_collections")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", ecoCampaignId)
+      .eq("is_baseline", true);
+    if ((baselineCount ?? 0) === 0) {
+      shouldRunBaseline = true;
+      console.log(`[extract] baseline retry (campaign_internal, no prior baseline): deal=${deal_id} campaign=${ecoCampaignId}`);
+    }
+  }
+  if (shouldRunBaseline) {
     const { writeBaselineOfficial } = await import("../_shared/collection-writer.ts");
     let baselineQ = supabase
       .from("curator_deal_snapshots")
