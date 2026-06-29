@@ -1320,7 +1320,7 @@ Deno.serve(async (req) => {
     baselineQ = song_id ? baselineQ.eq("song_id", song_id) : baselineQ.is("song_id", null);
 
     const { data: baselineSnaps } = await baselineQ;
-    const rows = (baselineSnaps ?? [])
+    let rows = (baselineSnaps ?? [])
       .map((s: any) => ({ snapshot: s, playlist: s.curator_playlists }))
       .filter(({ playlist }: any) =>
         playlist?.spotify_playlist_id &&
@@ -1334,6 +1334,27 @@ Deno.serve(async (req) => {
         plays_7d: Number(snapshot.plays ?? 0) || 0,
         captured_at: snapshot.captured_at,
       }));
+
+    // Fallback campaign_internal: quando a baseline não conseguiu ser montada a
+    // partir de `curator_deal_snapshots` (ex.: nenhuma playlist do print bateu
+    // com whitelist nem com managed_playlists), usa o próprio DOM da S4A como
+    // fonte de verdade. O ecossistema da campanha precisa nascer com a foto
+    // completa daquilo que o S4A mostrou, mesmo sem cadastro prévio.
+    if (rows.length === 0 && isCampaignInternal && domItems.length > 0) {
+      const capturedAt = new Date().toISOString();
+      rows = domItems
+        .filter((d) => d.id && !d.id.startsWith("algo:"))
+        .map((d) => ({
+          spotify_playlist_id: d.id,
+          playlist_name: d.name ?? null,
+          playlist_url: d.url || `https://open.spotify.com/playlist/${d.id}`,
+          plays_7d: Number(d.plays_7d ?? d.plays ?? 0) || 0,
+          captured_at: capturedAt,
+        }));
+      console.log(
+        `[extract] baseline fallback via DOM (campaign_internal): deal=${deal_id} rows=${rows.length}`,
+      );
+    }
 
     await writeBaselineOfficial(supabase, {
       writer: "extract-snapshot-from-print",
