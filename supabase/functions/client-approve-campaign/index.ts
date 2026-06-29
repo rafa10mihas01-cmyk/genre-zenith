@@ -1,6 +1,6 @@
 // client-approve-campaign — wrapper público da RPC `client_approve_campaign`.
 // Aplica rate limit 120 req/min por IP e injeta o IP real do cliente no RPC.
-import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { checkRateLimit, clientIp, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { gateCampaignAccess } from "../_shared/portal-auth.ts";
