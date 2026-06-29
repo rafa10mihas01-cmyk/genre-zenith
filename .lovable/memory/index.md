@@ -10,6 +10,7 @@ Edge functions sensíveis (IA cara, Spotify, dados) DEVEM usar `requireTeamAcces
 Status canônicos: `playlist_templates.status` ∈ {pending, approved, created, archived, rejected}. `replications.status` ∈ {pending, created, error, parcial}. `performance_class` ∈ {alta, media, baixa, NULL}. `quality_tier` ∈ {hot, medium, weak, archived}. Validados por CHECK constraints.
 Concorrência do autopilot: unique partial index em `autopilot_runs(genre_id) WHERE status='running'` garante 1 run por gênero. Tratar erro 23505 como lock (HTTP 409).
 A palavra **baseline** é reservada à fotografia inicial da campanha (`campaign_playlist_collections.is_baseline` + `get_campaign_baseline()`). Outros marcos de "início" devem ter nome próprio: `is_initial_capture` (snapshots), `is_initial_capture_event` (logs), `is_initial_roster` (playlists do deal).
+Delivery: primeiro upload válido da playlist = baseline/delta 0; todo upload posterior soma por ordem de chegada. Nunca deduplicar por reference_date nem filtrar label upload superseded.
 
 ## Memories
 - [Page header pattern](mem://design/page-header-pattern) — Componente PageHeader obrigatório, regras de title/subtitle, proibições
