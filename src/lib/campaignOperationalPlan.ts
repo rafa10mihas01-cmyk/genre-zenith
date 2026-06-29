@@ -324,6 +324,20 @@ export interface RealCapacityAlloc {
   position: number;
   cap_dia: number;
   fits: boolean;
+  /**
+   * Ação em relação ao estado atual da faixa na playlist:
+   * - "insert": a faixa não está; o catálogo nunca colocou ou foi removida.
+   * - "keep": a faixa já está em posição igual ou MELHOR que a alvo greedy
+   *   — o plano apenas honra o trabalho do catálogo, sem reescrever.
+   * - "reposition": a faixa já está, mas em posição PIOR que a alvo —
+   *   o plano promove para a posição-alvo.
+   *
+   * Quando `currentPositionById` não é informado, todas as allocations vêm
+   * com `action: "insert"` (comportamento legado).
+   */
+  action: "insert" | "keep" | "reposition";
+  /** Posição atual da faixa quando action ∈ {keep, reposition}. */
+  previousPosition?: number;
 }
 
 export type RealCapacityMode = "cascade" | "balanced";
@@ -333,12 +347,13 @@ export function planRealCapacity(
   dailyNeed: number,
   multiplier: number,
   tolerance = ECO_DAILY_TOLERANCE,
-  opts: { mode?: RealCapacityMode } = {},
+  opts: { mode?: RealCapacityMode; currentPositionById?: Map<string, number> } = {},
 ): { allocations: RealCapacityAlloc[]; coveredDaily: number; remaining: number } {
   if (dailyNeed <= 0 || playlists.length === 0) {
     return { allocations: [], coveredDaily: 0, remaining: dailyNeed };
   }
   const mode: RealCapacityMode = opts.mode ?? "cascade";
+  const presence = opts.currentPositionById ?? new Map<string, number>();
   const primary = playlists.filter(p => p.source === "primary");
   const neighbor = playlists.filter(p => p.source === "neighbor");
   const allocations: RealCapacityAlloc[] = [];
@@ -360,6 +375,43 @@ export function planRealCapacity(
   const PRIMARY_BALANCED_SHARE = 0.70;
   const primaryStopThreshold =
     mode === "balanced" ? targetDaily * (1 - PRIMARY_BALANCED_SHARE) : stopThreshold;
+
+  // ── PASSO 1 (presença): qualquer playlist do pool em que a faixa já está
+  // entra no plano ANTES do greedy. A posição atual vira teto: nunca rebaixa.
+  // O greedy roda só pro restante (faixas a inserir).
+  if (presence.size > 0) {
+    const claimed = new Set<string>();
+    for (const p of playlists) {
+      const curPos = presence.get(p.id);
+      if (!Number.isFinite(curPos as number) || (curPos as number) <= 0) continue;
+      claimed.add(p.id);
+      const minPos = p.source === "neighbor" ? NEIGHBOR_MIN_POSITION : 1;
+      const target = selectPositionByDailyNeed(p.followers, multiplier, Math.max(remaining, dailyNeed), tolerance, minPos);
+      const targetPos = target.position;
+      // KEEP se a posição atual já é >= alvo (posição menor = melhor).
+      // REPOSITION se a atual é pior que o alvo.
+      const isKeep = (curPos as number) <= targetPos;
+      const finalPos = isKeep ? (curPos as number) : targetPos;
+      const cap = calculateTrackDailyStreams(p.followers, multiplier, finalPos);
+      allocations.push({
+        id: p.id,
+        name: p.name,
+        followers: p.followers,
+        source: p.source,
+        position: finalPos,
+        cap_dia: cap,
+        fits: cap > 0,
+        action: isKeep ? "keep" : "reposition",
+        previousPosition: curPos as number,
+      });
+      covered += cap;
+      remaining -= cap;
+    }
+    // Remove playlists já reivindicadas pra que o greedy não as reescolha.
+    const filterClaimed = <T extends { id: string }>(arr: T[]) => arr.filter(x => !claimed.has(x.id));
+    primary.splice(0, primary.length, ...filterClaimed(primary));
+    neighbor.splice(0, neighbor.length, ...filterClaimed(neighbor));
+  }
 
   const consume = (list: typeof primary, minPos: number, stopAt: number) => {
     const pool = [...list];
@@ -384,6 +436,7 @@ export function planRealCapacity(
         position: bestSel.position,
         cap_dia: bestSel.cap,
         fits: bestSel.fits,
+        action: "insert",
       });
       covered += bestSel.cap;
       remaining -= bestSel.cap;
@@ -405,6 +458,7 @@ export function planRealCapacity(
 
   return { allocations, coveredDaily: covered, remaining: Math.max(0, remaining) };
 }
+
 
 
 /**
