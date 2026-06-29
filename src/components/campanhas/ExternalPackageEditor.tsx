@@ -132,7 +132,7 @@ export function ExternalPackageEditor({
           .single(),
         supabase
           .from("campaign_external_package_items")
-          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, curators(name, contact)")
+          .select("id, curator_id, assigned_streams, assigned_cost, cost_per_stream, curator_deal_id, source_purchase_id, curators(name, contact)")
           .eq("package_id", packageId)
           .order("assigned_streams", { ascending: false }),
         fetchCuratorCandidates(),
@@ -148,11 +148,62 @@ export function ExternalPackageEditor({
           dealById.set(d.id, d);
         }
       }
+
+      // Re-hidratação da taxa do curador em itens ainda não confirmados.
+      // Regra: item sem `curator_deal_id` é rascunho efetivo (mesmo se o
+      // pacote estiver `dispatched` — itens adicionados depois entram zerados
+      // sem deal). Pra esses, a taxa do item deve refletir a fonte VIVA do
+      // curador (`next_purchase.cpp` → senão média histórica) em vez de ficar
+      // congelada no DEFAULT que foi salvo no momento do insert (quando o
+      // curador talvez ainda não tivesse compra registrada).
+      // Itens com `curator_deal_id` permanecem como estão (histórico travado).
+      const candidateById = new Map<string, typeof cand[number]>();
+      for (const c of cand) candidateById.set(c.id, c);
+      const itemsRaw = (its ?? []) as any[];
+      const rehydrated = itemsRaw.map((it) => {
+        if (it.curator_deal_id) return it;
+        const c = candidateById.get(it.curator_id);
+        if (!c) return it;
+        const liveCps = c.next_purchase?.cpp && c.next_purchase.cpp > 0
+          ? c.next_purchase.cpp
+          : c.cost_per_stream;
+        const liveSource = c.next_purchase?.id ?? null;
+        const cpsChanged = Math.abs(Number(it.cost_per_stream ?? 0) - liveCps) > 1e-9;
+        const sourceChanged = (it.source_purchase_id ?? null) !== liveSource;
+        if (!cpsChanged && !sourceChanged) return it;
+        const nextStreams = Number(it.assigned_streams ?? 0);
+        return {
+          ...it,
+          cost_per_stream: liveCps,
+          source_purchase_id: liveSource,
+          assigned_cost: +(nextStreams * liveCps).toFixed(2),
+          __rehydrate: true,
+        };
+      });
+
+      // Persiste em background as re-hidratações (não bloqueia UI).
+      const toPersist = rehydrated.filter((it: any) => it.__rehydrate);
+      if (toPersist.length > 0) {
+        void Promise.all(toPersist.map((it: any) =>
+          supabase
+            .from("campaign_external_package_items")
+            .update({
+              cost_per_stream: it.cost_per_stream,
+              assigned_cost: it.assigned_cost,
+              source_purchase_id: it.source_purchase_id,
+            })
+            .eq("id", it.id),
+        )).catch((e) => console.warn("[ExternalPackageEditor] rehydrate persist failed", e));
+      }
+
       setPkg(p as any);
-      setItems(((its ?? []) as any[]).map((it) => ({
-        ...it,
-        curator_deals: it.curator_deal_id ? dealById.get(it.curator_deal_id) ?? null : null,
-      })) as any);
+      setItems(rehydrated.map((it: any) => {
+        const { __rehydrate, ...rest } = it;
+        return {
+          ...rest,
+          curator_deals: it.curator_deal_id ? dealById.get(it.curator_deal_id) ?? null : null,
+        };
+      }) as any);
       setCandidates(cand);
 
       // Entregas reais por curador na campanha — soma deltas via RPC fn_campaign_playlist_growth (Etapa 2B).
