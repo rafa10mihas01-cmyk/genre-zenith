@@ -23,6 +23,10 @@ export interface EcoRealCapacity {
   poolSize: number;
   /** Se o gênero foi resolvido pra um id real do banco. */
   genreResolved: boolean;
+  /** Quantas playlists do pool já tinham a faixa (catálogo). */
+  presenceCount: number;
+  /** Resumo de ações sobre as allocations escolhidas. */
+  summary: { keep: number; reposition: number; insert: number };
 }
 
 const EMPTY: EcoRealCapacity = {
@@ -34,6 +38,8 @@ const EMPTY: EcoRealCapacity = {
   tolerance: ECO_DAILY_TOLERANCE,
   poolSize: 0,
   genreResolved: false,
+  presenceCount: 0,
+  summary: { keep: 0, reposition: 0, insert: 0 },
 };
 
 /**
@@ -45,8 +51,10 @@ const EMPTY: EcoRealCapacity = {
  * - devolve a lista de playlists que serão realmente usadas, com posição e
  *   cap_dia esperado.
  *
- * Espelha exatamente o algoritmo do `distributeByDailyNeed` na edge function
- * `replan-campaign-eco`, então o que o usuário vê AQUI é o que vai rodar lá.
+ * Quando `spotifyTrackId` é informado (música vinda do catálogo), o hook
+ * lê `managed_playlist_tracks` ANTES de planejar e injeta as posições atuais
+ * no planner — assim cada allocation já vem rotulada como keep / reposition /
+ * insert, sem reescrever trabalho que o catálogo já fez.
  */
 export function useEcoRealCapacity(
   genre: string,
@@ -54,6 +62,7 @@ export function useEcoRealCapacity(
   multiplier = 30,
   tolerance = ECO_DAILY_TOLERANCE,
   mode: RealCapacityMode = "cascade",
+  spotifyTrackId: string | null = null,
 ): EcoRealCapacity {
   const [state, setState] = useState<EcoRealCapacity>(EMPTY);
 
@@ -111,8 +120,36 @@ export function useEcoRealCapacity(
           source: (p.genre_id === gid ? "primary" : "neighbor") as "primary" | "neighbor",
         }));
 
-        // 4) Aplica algoritmo greedy idêntico ao da edge
-        const result = planRealCapacity(pool, dailyNeed, multiplier, tolerance, { mode });
+        // 4) Presença: se a faixa veio do catálogo, lê posições atuais no pool.
+        // Esse passo é o coração da etapa "catálogo → campanha" — o planner
+        // parte do estado real e só decide manter, reposicionar ou inserir.
+        const currentPositionById = new Map<string, number>();
+        if (spotifyTrackId && pool.length > 0) {
+          const ids = pool.map(p => p.id);
+          const { data: presence } = await supabase
+            .from("managed_playlist_tracks")
+            .select("playlist_id, position")
+            .eq("spotify_track_id", spotifyTrackId)
+            .in("playlist_id", ids);
+          for (const t of (presence ?? []) as Array<{ playlist_id: string; position: number | null }>) {
+            const pos = Number(t.position);
+            if (Number.isFinite(pos) && pos > 0) currentPositionById.set(t.playlist_id, pos);
+          }
+        }
+
+        // 5) Aplica algoritmo greedy idêntico ao da edge, agora com presença.
+        const result = planRealCapacity(pool, dailyNeed, multiplier, tolerance, {
+          mode,
+          currentPositionById,
+        });
+
+        const summary = result.allocations.reduce(
+          (acc, a) => {
+            acc[a.action] += 1;
+            return acc;
+          },
+          { keep: 0, reposition: 0, insert: 0 } as { keep: number; reposition: number; insert: number },
+        );
 
         if (cancelled) return;
         setState({
@@ -124,11 +161,13 @@ export function useEcoRealCapacity(
           tolerance,
           poolSize: pool.length,
           genreResolved: true,
+          presenceCount: currentPositionById.size,
+          summary,
         });
       })();
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [genre, dailyNeed, multiplier, tolerance, mode]);
+  }, [genre, dailyNeed, multiplier, tolerance, mode, spotifyTrackId]);
 
   return state;
 }

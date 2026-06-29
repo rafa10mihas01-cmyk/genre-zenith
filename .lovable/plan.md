@@ -1,76 +1,86 @@
-## Contexto da auditoria
 
-Existem **dois `is_default` distintos** no schema — só um é resquício:
+## Objetivo
 
-| Coluna | Significado | Status |
-|---|---|---|
-| `spotify_user_tokens.is_default` | Conta primária **por dono** (entre múltiplas contas do mesmo usuário) | ✅ Legítimo, **mantém** |
-| `spotify_apps.is_default` | App default **do pool** (NexEngine 10) | ❌ Resquício pré-17-C, **remove** |
+Quando uma música do catálogo vira campanha, o planner ECO precisa **partir do estado real** da faixa nas playlists do pool, decidindo entre três ações por playlist:
 
-### Onde `spotify_apps.is_default` ainda é lido
-
-1. `_shared/spotify.ts::getDefaultSpotifyAppId()` — usada como:
-   - Tiebreaker no fallback legado de `getAppCredentials()` (quando `pick_spotify_app` RPC falha)
-   - Resolver `appId === "global"` para um app concreto (linhas 204, 224)
-   - Selecionar primário em listagens de tokens (linhas 960, 1003)
-2. `spotify-auth`, `spotify-invite`, `spotify-public-auth` — escrita/leitura puramente administrativa (garantir exatamente 1 default)
-3. `SpotifyBalancerOverviewPanel`, `SpotifyAppsManager` — exibição da estrela "padrão"
-
-A RPC canônica `pick_spotify_app(purpose)` (Fase 16) **já não usa `is_default`** — ranqueia por Capacity + Health Score. Logo, em produção normal o flag praticamente não influencia roteamento.
-
-### Risco residual a tratar antes de dropar
-
-- `appId === "global"` ainda existe em chamadas legadas. Precisa migrar para `pick_spotify_app('write')` antes de remover `getDefaultSpotifyAppId`.
-- `purpose='enrich'` no App 10: pós-17-C enrich roda via Cache + Worker, então o purpose também perdeu sentido. Vamos normalizar para `hybrid` (escrita + `/search`).
-
----
-
-## Plano de execução
-
-### Etapa 1 — Backend: remover dependência funcional do flag
-
-1. Em `_shared/spotify.ts`:
-   - Substituir os 2 usos de `getDefaultSpotifyAppId()` para resolver `"global"` (linhas 204, 224) por uma chamada a `pick_spotify_app('write')` com fallback determinístico (primeiro app `status=active` ordenado por `created_at`).
-   - Remover `getDefaultSpotifyAppId()` e o tiebreaker `.order("is_default")` no fallback do `getAppCredentials()`.
-   - Manter os usos com `spotify_user_tokens.is_default` (linhas 947, 970, 1012) intactos — esses são "primário por dono".
-
-### Etapa 2 — Backend: limpar UX administrativo
-
-2. Em `spotify-auth`, `spotify-invite`, `spotify-public-auth`:
-   - Remover toda lógica que marca/desmarca `spotify_apps.is_default` ao criar/editar app ou conta.
-   - Manter ordenação por `created_at` nas listagens.
-
-### Etapa 3 — Banco: migração
-
-3. Migration:
-   - `ALTER TABLE spotify_apps DROP COLUMN is_default;`
-   - `UPDATE spotify_apps SET purpose = 'hybrid' WHERE purpose = 'enrich';` (enrich pós-17-C não existe mais)
-   - Não mexer em `spotify_user_tokens.is_default`.
-
-### Etapa 4 — Frontend: limpar referências visuais
-
-4. Remover badge "padrão" e checkbox `is_default` em:
-   - `src/components/settings/SpotifyAppsManager.tsx`
-   - `src/components/sistema/SpotifyBalancerOverviewPanel.tsx`
-   - Linha 415 de `spotify-auth` (`.order("is_default")` no listAppsAdmin).
-   
-   Manter o badge "padrão" das **contas** (`spotify_user_tokens.is_default`) em `Settings.tsx` e `MinhasPlaylists.tsx` — esses são primário por dono.
-
-### Etapa 5 — Validação
-
-5. Após deploy:
-   - Confirmar que `getAppCredentials({purpose:'write'})` segue funcionando (executa create-spotify-playlist em sandbox).
-   - Confirmar que `/sistema → Balancer` lista os 4 apps ativos sem erro.
-   - Confirmar que admin de Settings ainda permite criar/editar apps (sem o campo "padrão").
-
----
-
-## Resultado arquitetural
-
-| Antes | Depois |
+| Ação | Quando |
 |---|---|
-| App default = roteamento residual + flag administrativo | Conceito eliminado. Único roteador = `pick_spotify_app(purpose)` |
-| `purpose='enrich'` no App 10 | Todos os apps ativos = `hybrid` (escrita + exceção `/search`) |
-| 4 lugares no código olhando `spotify_apps.is_default` | Zero |
+| **KEEP** (manter) | Faixa já está em posição ≥ que a posição-alvo planejada |
+| **REPOSITION** (promover) | Faixa já está, mas em posição pior que o alvo |
+| **INSERT** (inserir) | Faixa não está na playlist e é necessária pra meta |
 
-Encerramento natural da 17-C no plano OAuth: roteamento sempre explícito por capacidade e saúde, sem "app especial".
+O Campaign Engine, ECO, Curadores, Rádio e cálculos de capacidade **não mudam**. A única diferença é a etapa de leitura do estado atual antes de aplicar o algoritmo já existente.
+
+## Estado atual do código
+
+- **Backend (`approve-campaign-plan`)** já lê `managed_playlist_tracks` e passa `currentPositionById` para `distributeByDailyNeed`, que usa a posição atual como teto (nunca rebaixa) e dá leve preferência em empates. Funciona, mas é invisível para o operador.
+- **Frontend (`useEcoRealCapacity` + `CapacidadeRealCard`)** ignora completamente a presença atual. O preview monta o plano "do zero", então o operador vê 17 inserções quando na verdade 12 já estão lá.
+- **Edge `replan-campaign-eco`** também não usa presença no preview de capacidade, só na hora de aprovar.
+
+O gap é só de **leitura + classificação de ação**, não de cálculo.
+
+## Mudanças
+
+### 1. `src/lib/campaignOperationalPlan.ts` — `planRealCapacity` aceita posições atuais
+
+Adiciona parâmetro opcional `currentPositionById: Map<string, number>` e, para cada playlist:
+
+- Se a faixa já está em posição **melhor ou igual** ao alvo greedy → cria allocation com `action: "keep"`, `position = currentPosition`, `cap_dia` recalculado pela posição atual. Não consome `remaining`.
+- Se a faixa está em posição **pior** que o alvo → allocation com `action: "reposition"`, `position = alvo`, `previousPosition = currentPosition`.
+- Se a faixa **não está** → allocation com `action: "insert"`, comportamento atual.
+
+Tipo `RealCapacityAlloc` ganha:
+```ts
+action: "keep" | "reposition" | "insert";
+previousPosition?: number; // só em reposition/keep
+```
+
+### 2. `src/hooks/useEcoRealCapacity.ts` — busca presença
+
+Passa a aceitar `spotifyTrackId?: string`. Quando presente:
+
+1. Faz um `select playlist_id, position from managed_playlist_tracks where spotify_track_id = ? and playlist_id in (pool)`.
+2. Monta `currentPositionById` e repassa pra `planRealCapacity`.
+
+Sem `spotifyTrackId` (campanha sem faixa do catálogo) o comportamento é idêntico ao atual.
+
+### 3. `src/components/operacao/calculadora/CapacidadeRealCard.tsx` — surface das ações
+
+- Resumo no topo: "**12 manter · 3 reposicionar · 2 inserir** · 17 playlists no plano"
+- Cada linha da lista expandida ganha badge da ação:
+  - 🟢 `Manter #3`
+  - 🟡 `Reposicionar #18 → #5`
+  - 🔵 `Inserir #5`
+
+### 4. `src/components/operacao/calculadora/Calculadora.tsx`
+
+Passa `active.track?.id` (spotify_track_id) para o hook `useEcoRealCapacity`.
+
+### 5. Edge `replan-campaign-eco` (opcional, só pra paridade)
+
+Adiciona o mesmo `currentPositionById` que `approve-campaign-plan` já faz, pra que o preview de replan reflita a presença. Sem mudar nenhuma fórmula.
+
+## O que NÃO muda
+
+- `campaignEngine.ts` — intocado
+- Splits ECO / Curadores / Rádio — intocados
+- Fórmula de capacidade (`saves × mult/30 × POSITION_PCT`) — intocada
+- `planEcoAllocations`, `distributeByDailyNeed`, `distributeEcoPositions` — intocados
+- Motor de Catálogo (`catalog-executor`, `process-catalog-placements`) — intocado
+- Banco — nenhuma migration
+
+## Resultado esperado
+
+No card de capacidade, antes de aprovar:
+
+```
+17 playlists · Forró +16 vizinhos
+12 manter · 3 reposicionar · 2 inserir
+
+Playlist A    Reposicionar #18 → #5    2.1k/dia
+Playlist B    Manter #3                3.4k/dia
+Playlist C    Inserir #5               1.8k/dia
+…
+```
+
+Ao aprovar, o backend (`approve-campaign-plan`) já faz exatamente isso hoje — só estamos refletindo no preview o que o approve já decide. Nenhum re-trabalho de catálogo, nenhuma posição rebaixada.
