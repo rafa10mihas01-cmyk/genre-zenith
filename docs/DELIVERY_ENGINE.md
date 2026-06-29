@@ -41,7 +41,6 @@ leitura anterior gera incremento.
 ```text
 delta_pos =
   0                                  se é a primeira leitura válida da playlist
-  0                                  se is_baseline = true
   plays_7d                           se upload posterior é last_24h/last_day
   max(0, plays_7d − prev_plays_7d)    nos demais casos
 ```

@@ -2374,7 +2374,7 @@ export default function CuratorPage() {
               </div>
             ) : (
               (() => {
-                // Ordenar por chegada do upload. Não existe dedup por reference_date.
+                // Ordenar por chegada do upload. Não agrupar por data de referência.
                 const sorted = [...uploads].sort((a, b) => {
                   return b.created_at.localeCompare(a.created_at);
                 });
