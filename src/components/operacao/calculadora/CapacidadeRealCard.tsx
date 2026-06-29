@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Target, AlertTriangle, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Target, AlertTriangle, Check, ChevronDown, ChevronUp, ArrowUpRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInt } from "@/lib/campaignEngine";
 import { useEcoRealCapacity } from "@/hooks/useEcoRealCapacity";
@@ -9,6 +9,11 @@ interface Props {
   dailyNeed: number;
   multiplier: number;
   clientProfile?: "gravadora" | "artista";
+  /** spotify_track_id da faixa do catálogo (quando aplicável). Quando
+   *  fornecido, o planner lê a posição atual da faixa em cada playlist do
+   *  pool e classifica cada allocation como keep/reposition/insert — assim
+   *  o operador vê o trabalho que o catálogo já fez antes de aprovar. */
+  spotifyTrackId?: string | null;
 }
 
 /**
@@ -22,10 +27,11 @@ interface Props {
  * Quando o cliente é gravadora/label, ativa o modo "balanced" (70% primária /
  * 30% vizinho) pra reduzir a contagem de playlists.
  */
-export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile }: Props) {
+export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile, spotifyTrackId }: Props) {
   const mode = clientProfile === "gravadora" ? "balanced" : "cascade";
-  const cap = useEcoRealCapacity(genre, dailyNeed, multiplier, undefined, mode);
+  const cap = useEcoRealCapacity(genre, dailyNeed, multiplier, undefined, mode, spotifyTrackId ?? null);
   const [expanded, setExpanded] = useState(false);
+
 
   if (!genre?.trim() || dailyNeed <= 0) return null;
 
