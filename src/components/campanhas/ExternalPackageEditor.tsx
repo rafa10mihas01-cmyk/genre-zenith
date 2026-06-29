@@ -77,6 +77,7 @@ type ItemRow = {
   assigned_cost: number;
   cost_per_stream: number;
   curator_deal_id: string | null;
+  source_purchase_id?: string | null;
   curators: { name: string; contact: string | null } | null;
   curator_deals: {
     state: string | null;
