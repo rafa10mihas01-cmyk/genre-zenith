@@ -526,13 +526,21 @@ Deno.serve(async (req) => {
   // Mantemos algorítmicas (made_by=Spotify) mesmo sem URL — id sintético "algo:<nome>".
   for (let i = 0; i < dom_playlists.length; i++) {
     const d = dom_playlists[i] as any;
-    if (!d?.name) continue;
-    const name = String(d.name).trim();
+    // Aceita ambos os shapes: o legado `{name,url}` e o oficial gravado pelo
+    // bot (`{playlist_name, spotify_url, spotify_playlist_id}`).
+    const rawName = d?.name ?? d?.playlist_name ?? null;
+    const rawUrl = d?.url ?? d?.spotify_url ?? null;
+    const rawSpId = d?.spotify_playlist_id ?? null;
+    if (!rawName) continue;
+    const name = String(rawName).trim();
     const madeBy = (d.made_by ?? null) as string | null;
-    const isAlgoRow = (madeBy ?? "").trim().toLowerCase() === "spotify" || !d.url;
+    const hasUrl = !!rawUrl || !!rawSpId;
+    const isAlgoRow = (madeBy ?? "").trim().toLowerCase() === "spotify" || !hasUrl;
     let id: string;
-    if (d.url) {
-      const m = String(d.url).match(/playlist[/:]([a-zA-Z0-9]{16,})/);
+    if (rawSpId) {
+      id = String(rawSpId);
+    } else if (rawUrl) {
+      const m = String(rawUrl).match(/playlist[/:]([a-zA-Z0-9]{16,})/);
       if (!m) {
         if (!isAlgoRow) continue;
         id = `algo:${normName(name)}`;
@@ -557,7 +565,7 @@ Deno.serve(async (req) => {
     const position = Number.isFinite(pos) && pos > 0 ? pos : (i + 1);
     const item: DomItem = {
       id,
-      url: d.url ?? "",
+      url: rawUrl ?? (id && !id.startsWith("algo:") ? `https://open.spotify.com/playlist/${id}` : ""),
       name,
       position,
       plays: playsNum,
