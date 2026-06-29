@@ -1716,7 +1716,9 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
                       dailyNeed={result.effectiveDays > 0 ? Math.round(result.streamsEco / result.effectiveDays) : 0}
                       multiplier={active.engagementMultiplier ?? 35}
                       clientProfile={active.clientProfile}
+                      spotifyTrackId={active.track?.id ?? null}
                     />
+
                   </div>
 
                 </CardContent>
