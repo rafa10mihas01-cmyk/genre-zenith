@@ -1585,8 +1585,9 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
                             "font-medium tabular-nums",
                             ecoOverflow ? "text-destructive" : ecoUsagePct >= 90 ? "text-amber-600 dark:text-amber-400" : "text-primary",
                           )}>
-                            {ecoUsagePct}% usado
+                            {ecoUsagePct}% {ecoOverflow ? "da capacidade" : "usado"}
                           </span>
+
                         </div>
                         {(() => {
                           const days = result.effectiveDays || 1;
@@ -1670,21 +1671,39 @@ export function Calculadora({ onContinue, prefillSpotifyTrackId }: { onContinue?
 
 
 
-                        {ecoOverflow && suggestedEcoPct != null && (
-                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-destructive/20">
-                            <span className="text-[11px] text-destructive flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              Faltam {formatInt(ecoNeeded - ecoCap.capacityTotal)} — sobe pros curadores
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setSplitEco(suggestedEcoPct)}
-                              className="text-[11px] font-medium text-primary hover:underline whitespace-nowrap"
-                            >
-                              Aplicar {suggestedEcoPct}/{suggestedExtPct}
-                            </button>
+                        {ecoOverflow && (
+                          <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/[0.04] px-3 py-2.5 space-y-2">
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                              <span className="text-muted-foreground">Capacidade do ecossistema</span>
+                              <span className="text-right tabular-nums text-foreground">{formatInt(ecoCap.capacityTotal)} plays</span>
+
+                              <span className="text-muted-foreground">Necessário para o Eco</span>
+                              <span className="text-right tabular-nums text-foreground">{formatInt(ecoNeeded)} plays</span>
+
+                              <span className="text-muted-foreground">Utilização</span>
+                              <span className="text-right tabular-nums text-destructive font-medium">{ecoUsagePct}% da capacidade</span>
+
+                              <span className="text-muted-foreground">Excedente</span>
+                              <span className="text-right tabular-nums text-destructive font-medium">{formatInt(ecoNeeded - ecoCap.capacityTotal)} plays</span>
+                            </div>
+                            <p className="text-[11px] leading-snug text-muted-foreground border-t border-destructive/15 pt-2">
+                              Isso não é um erro. O ecossistema próprio, sozinho, não cobre todo o eco pedido pelo split — o excedente precisará ser absorvido pelos demais canais da campanha (curadores
+                              {result.streamsOrganic > 0 ? " e/ou rádio" : ""}).
+                            </p>
+                            {suggestedEcoPct != null && (
+                              <div className="flex items-center justify-end pt-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setSplitEco(suggestedEcoPct)}
+                                  className="text-[11px] font-medium text-primary hover:underline whitespace-nowrap"
+                                >
+                                  Aplicar split sugerido {suggestedEcoPct}/{suggestedExtPct}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
+
                       </div>
                     )}
 
