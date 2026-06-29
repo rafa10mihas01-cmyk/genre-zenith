@@ -127,6 +127,31 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
         </div>
       )}
 
+      {/* Resumo de ações — só aparece quando há presença real do catálogo. */}
+      {spotifyTrackId && cap.allocations.length > 0 && (cap.summary.keep + cap.summary.reposition) > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+          <span className="text-muted-foreground uppercase tracking-wide text-[10px]">Catálogo · estado atual</span>
+          {cap.summary.keep > 0 && (
+            <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+              <Check className="h-3 w-3" />
+              <strong className="tabular-nums font-medium">{cap.summary.keep}</strong> manter
+            </span>
+          )}
+          {cap.summary.reposition > 0 && (
+            <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+              <ArrowUpRight className="h-3 w-3" />
+              <strong className="tabular-nums font-medium">{cap.summary.reposition}</strong> reposicionar
+            </span>
+          )}
+          {cap.summary.insert > 0 && (
+            <span className="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400">
+              <Plus className="h-3 w-3" />
+              <strong className="tabular-nums font-medium">{cap.summary.insert}</strong> inserir
+            </span>
+          )}
+        </div>
+      )}
+
       {cap.allocations.length > 0 && (
         <>
           <button
@@ -139,28 +164,41 @@ export function CapacidadeRealCard({ genre, dailyNeed, multiplier, clientProfile
           </button>
           {expanded && (
             <div className="mt-2 space-y-1 max-h-64 overflow-y-auto pr-1">
-              {cap.allocations.map(a => (
-                <div
-                  key={a.id}
-                  className="flex items-center justify-between gap-2 rounded-md border border-border/40 bg-background/40 px-2.5 py-1.5 text-[11px]"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-foreground">{a.name ?? a.id.slice(0, 8)}</div>
-                    <div className="text-[10px] text-muted-foreground tabular-nums">
-                      {formatInt(a.followers)} saves
-                      {a.source === "neighbor" && <span className="text-amber-600 dark:text-amber-400"> · vizinho</span>}
+              {cap.allocations.map(a => {
+                const actionMeta =
+                  a.action === "keep"
+                    ? { label: `Manter #${a.position}`, color: "text-emerald-600 dark:text-emerald-400", Icon: Check }
+                    : a.action === "reposition"
+                      ? { label: `Reposicionar #${a.previousPosition} → #${a.position}`, color: "text-amber-600 dark:text-amber-400", Icon: ArrowUpRight }
+                      : { label: `Inserir #${a.position}`, color: "text-sky-600 dark:text-sky-400", Icon: Plus };
+                const ActionIcon = actionMeta.Icon;
+                return (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border/40 bg-background/40 px-2.5 py-1.5 text-[11px]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-foreground">{a.name ?? a.id.slice(0, 8)}</div>
+                      <div className="text-[10px] text-muted-foreground tabular-nums">
+                        {formatInt(a.followers)} saves
+                        {a.source === "neighbor" && <span className="text-amber-600 dark:text-amber-400"> · vizinho</span>}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
+                      <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium", actionMeta.color)}>
+                        <ActionIcon className="h-2.5 w-2.5" />
+                        {actionMeta.label}
+                      </span>
+                      <div className="text-[10px] text-muted-foreground tabular-nums">{formatInt(Math.round(a.cap_dia))}/dia</div>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-foreground tabular-nums font-medium">#{a.position}</div>
-                    <div className="text-[10px] text-muted-foreground tabular-nums">{formatInt(Math.round(a.cap_dia))}/dia</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>
       )}
+
     </div>
   );
 }
