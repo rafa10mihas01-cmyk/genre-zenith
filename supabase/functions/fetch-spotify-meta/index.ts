@@ -2,7 +2,7 @@
 // (track / playlist / album). Combina oEmbed (título + thumbnail) com
 // scrape de og:description da página pública pra extrair o artista
 // quando o oEmbed não traz no formato "Title - Artist".
-import { corsHeaders } from "npm:@supabase/supabase-js/cors";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { spotifyFetch } from "../_shared/spotify-client.ts";
 
 function jr(p: unknown, status = 200) {
