@@ -166,6 +166,48 @@ Deno.serve(async (req) => {
       // 3) Reorder (se preciso). insert_before pula a própria faixa quando
       // targetIdx está depois de currentIdx.
       if (targetIdx !== currentIdx) {
+        // === PROTEÇÃO DE CAMPANHA (04/07/2026) =============================
+        // O reorder do Spotify desloca todas as faixas no intervalo entre
+        // range_start e insert_before. Se qualquer faixa de campanha (ativa
+        // ou pausada) estiver nesse intervalo, ela seria movida — o que
+        // viola a autoridade da Campaign Engine. Nesse caso, abortamos o
+        // reorder e mantemos a faixa do catálogo onde está.
+        const lo = Math.min(currentIdx, targetIdx);
+        const hi = Math.max(currentIdx, targetIdx);
+        const { data: campInRange } = await supabase
+          .from("v_playlist_track_origin")
+          .select("position, spotify_track_id")
+          .eq("managed_playlist_id", r.managed_playlist_id)
+          .eq("origin", "Campaign")
+          .gte("position", lo)
+          .lte("position", hi)
+          .limit(1)
+          .maybeSingle();
+        if (campInRange) {
+          await supabase.from("catalog_placements").update({
+            repositioned_at: new Date().toISOString(),
+            reposition_last_error: `campaign_track_in_range pos=${(campInRange as any).position}`,
+            locked_at: null, locked_by: null, lease_expires_at: null,
+          }).eq("id", r.id);
+          await supabase.from("catalog_placement_execution_log").insert({
+            placement_id: r.id,
+            catalog_track_id: r.catalog_track_id,
+            managed_playlist_id: r.managed_playlist_id,
+            spotify_playlist_id: p.spotify_playlist_id,
+            spotify_track_id: t.spotify_track_id,
+            position: currentIdx,
+            outcome: "skip",
+            error_code: "campaign_track_in_range",
+            error_message: `range=[${lo},${hi}] blocked_by=${(campInRange as any).spotify_track_id}`,
+            snapshot_id: null,
+            position_reason: reason,
+          }).select().maybeSingle().then(() => {}, () => {});
+          cntSkip++;
+          details.push({ id: r.id, from: currentIdx, to: targetIdx, skipped: "campaign_track_in_range" });
+          await sleep(delayMs);
+          continue;
+        }
+
         const insertBefore = targetIdx > currentIdx ? targetIdx + 1 : targetIdx;
         await reorderPlaylistTracks(p.spotify_playlist_id, {
           range_start: currentIdx,
