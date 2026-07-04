@@ -63,7 +63,9 @@ type CPEnriched = CPRow & {
   tracks_count: number | null;
   spotify_track_id: string;
   spotify_uri: string | null;
+  is_campaign_active: boolean;
 };
+
 
 type Decision =
   | { action: "INSERT" }
@@ -135,13 +137,17 @@ async function runCatalogPlacements(sb: any, limit: number) {
   const trackIds = Array.from(new Set(rows.map((r) => r.catalog_track_id)));
   const playlistIds = Array.from(new Set(rows.map((r) => r.managed_playlist_id)));
 
-  const [{ data: tracks, error: tErr }, { data: playlists, error: pErr }] = await Promise.all([
+  const [{ data: tracks, error: tErr }, { data: playlists, error: pErr }, { data: campaignsActive }] = await Promise.all([
     sb.from("catalog_tracks")
       .select("id, spotify_track_id, spotify_uri")
       .in("id", trackIds),
     sb.from("managed_playlists")
       .select("id, spotify_playlist_id, owner_spotify_user_id, tracks_count, operational_status, execution_mode")
       .in("id", playlistIds),
+    sb.from("campaigns")
+      .select("catalog_track_id")
+      .in("catalog_track_id", trackIds)
+      .eq("status", "active"),
   ]);
 
   if (tErr || pErr) {
@@ -155,6 +161,10 @@ async function runCatalogPlacements(sb: any, limit: number) {
   for (const t of tracks ?? []) tMap.set(t.id, t);
   const pMap = new Map<string, any>();
   for (const p of playlists ?? []) pMap.set(p.id, p);
+  const activeCampaignTracks = new Set<string>();
+  for (const c of campaignsActive ?? []) {
+    if ((c as any).catalog_track_id) activeCampaignTracks.add((c as any).catalog_track_id);
+  }
 
   const enriched: CPEnriched[] = [];
   let cntInvalid = 0;
@@ -194,8 +204,10 @@ async function runCatalogPlacements(sb: any, limit: number) {
       tracks_count: typeof p.tracks_count === "number" ? p.tracks_count : null,
       spotify_track_id: t.spotify_track_id,
       spotify_uri: t.spotify_uri ?? null,
+      is_campaign_active: activeCampaignTracks.has(r.catalog_track_id),
     });
   }
+
 
   // Caches por execução.
   const tokenCache = new Map<string, string>();
@@ -263,31 +275,54 @@ async function runCatalogPlacements(sb: any, limit: number) {
     return { permanent: false, delaySec: 1800, statusReason: reason };
   }
 
-  async function logExec(p: CPEnriched, outcome: string, code: string | null, snapId: string | null, msg: string | null) {
+  async function logExec(
+    p: CPEnriched,
+    outcome: string,
+    code: string | null,
+    snapId: string | null,
+    msg: string | null,
+    finalPosition: number | null = null,
+    positionReason: string | null = null,
+  ) {
     await sb.from("catalog_placement_execution_log").insert({
       placement_id: p.id,
       catalog_track_id: p.catalog_track_id,
       managed_playlist_id: p.managed_playlist_id,
       spotify_playlist_id: p.spotify_playlist_id,
       spotify_track_id: p.spotify_track_id,
-      position: p.position,
+      position: finalPosition ?? p.position,
       outcome,
       error_code: code,
       error_message: _trim(msg),
       snapshot_id: snapId,
+      position_reason: positionReason,
     });
   }
 
-  async function markActive(p: CPEnriched, source: string, snap: string | null) {
-    await sb.from("catalog_placements").update({
+  async function markActive(
+    p: CPEnriched,
+    source: string,
+    snap: string | null,
+    finalPosition: number | null = null,
+    positionReason: string | null = null,
+  ) {
+    const update: Record<string, unknown> = {
       status: "active",
       added_at: new Date().toISOString(),
       last_error_code: null,
       locked_at: null, locked_by: null, lease_expires_at: null,
-    }).eq("id", p.id);
-    await logExec(p, source === "already_present" ? "already_present" : "active", null, snap, `source=${source}`);
+    };
+    if (typeof finalPosition === "number") update.position = finalPosition;
+    await sb.from("catalog_placements").update(update).eq("id", p.id);
+    await logExec(
+      p,
+      source === "already_present" ? "already_present" : "active",
+      null, snap, `source=${source}`,
+      finalPosition, positionReason,
+    );
     cntActive++;
   }
+
 
   async function markRetry(p: CPEnriched, code: string, msg: string | null) {
     if (p.attempts >= p.max_attempts) {
@@ -478,10 +513,56 @@ async function runCatalogPlacements(sb: any, limit: number) {
         cntInsertOnly++;
       }
 
-      const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, {});
+      // === CÁLCULO DA POSIÇÃO-ALVO (nova regra 04/07/2026) ===================
+      // Regra:
+      //   • playlist ≤ 5k followers → catálogo pode ocupar qualquer posição
+      //   • playlist > 5k followers → posições 1..5 são hot zone (reservadas
+      //     para campanhas ativas); catálogo comum entra a partir da 6
+      //   • Sempre alterna com faixas de terceiros (nunca 2 catálogo em sequência)
+      // Excepção: música com campanha ativa vinculada ignora a hot zone.
+      let targetPosition: number | null = null;
+      let positionReason: string | null = null;
+      try {
+        const { data: posData, error: posErr } = await sb.rpc(
+          "fn_compute_catalog_target_position",
+          {
+            _managed_playlist_id: p.managed_playlist_id,
+            _spotify_track_id: p.spotify_track_id,
+            _is_campaign_active: p.is_campaign_active,
+          },
+        );
+        if (!posErr && Array.isArray(posData) && posData.length > 0) {
+          const row = posData[0] as { slot_position: number; reason: string };
+          if (typeof row.slot_position === "number" && row.slot_position >= 0) {
+            targetPosition = row.slot_position;
+            positionReason = row.reason ?? null;
+          }
+        } else if (posErr) {
+          positionReason = `pos_rpc_failed: ${posErr.message}`;
+        }
+      } catch (e: any) {
+        positionReason = `pos_rpc_exception: ${e?.message ?? String(e)}`;
+      }
+
+      const insertOpts: { position?: number } = {};
+      if (typeof targetPosition === "number") {
+        // Clamp defensivo contra "index out of bounds" do Spotify
+        const maxSafe = typeof p.tracks_count === "number" ? p.tracks_count : targetPosition;
+        insertOpts.position = Math.max(0, Math.min(targetPosition, maxSafe));
+      }
+
+      const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
       cntSpotify++;
       await persistLocalInsert(p.managed_playlist_id, p.spotify_track_id);
-      await markActive(p, decision.action === "REMOVE_INSERT" ? "remove_insert" : "insert", addRes.snapshot_id ?? null);
+      const usedPosition = typeof insertOpts.position === "number" ? insertOpts.position : null;
+      await markActive(
+        p,
+        decision.action === "REMOVE_INSERT" ? "remove_insert" : "insert",
+        addRes.snapshot_id ?? null,
+        usedPosition,
+        positionReason,
+      );
+
     } catch (e: any) {
       const cls = classify(e);
       const msg = _trim(e?.message ?? String(e));

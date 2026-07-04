@@ -2574,6 +2574,7 @@ export type Database = {
           outcome: string
           placement_id: string
           position: number | null
+          position_reason: string | null
           snapshot_id: string | null
           spotify_playlist_id: string | null
           spotify_track_id: string | null
@@ -2588,6 +2589,7 @@ export type Database = {
           outcome: string
           placement_id: string
           position?: number | null
+          position_reason?: string | null
           snapshot_id?: string | null
           spotify_playlist_id?: string | null
           spotify_track_id?: string | null
@@ -2602,6 +2604,7 @@ export type Database = {
           outcome?: string
           placement_id?: string
           position?: number | null
+          position_reason?: string | null
           snapshot_id?: string | null
           spotify_playlist_id?: string | null
           spotify_track_id?: string | null
@@ -15967,6 +15970,17 @@ export type Database = {
           last_import_delta: number
           playlist_id: string
           playlist_url: string
+        }[]
+      }
+      fn_compute_catalog_target_position: {
+        Args: {
+          _is_campaign_active: boolean
+          _managed_playlist_id: string
+          _spotify_track_id: string
+        }
+        Returns: {
+          reason: string
+          slot_position: number
         }[]
       }
       fn_curator_delivery_accumulated: {
