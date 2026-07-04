@@ -551,6 +551,38 @@ async function runCatalogPlacements(sb: any, limit: number) {
         insertOpts.position = Math.max(0, Math.min(targetPosition, maxSafe));
       }
 
+      // === PROTEÇÃO DE CAMPANHA (04/07/2026) ================================
+      // Defesa em profundidade: `fn_compute_catalog_target_position` já exclui
+      // slots reservados por campanha, mas antes de qualquer chamada ao
+      // Spotify verificamos explicitamente que a posição-alvo não desloca uma
+      // faixa de campanha. Se detectarmos conflito → skip com motivo
+      // 'campaign_position_reserved' (a campanha sempre vence; nunca movemos).
+      if (typeof insertOpts.position === "number") {
+        try {
+          const { data: occ } = await sb
+            .from("v_playlist_track_origin")
+            .select("origin, spotify_track_id")
+            .eq("managed_playlist_id", p.managed_playlist_id)
+            .eq("position", insertOpts.position)
+            .eq("origin", "Campaign")
+            .maybeSingle();
+          if (occ && (occ as any).origin === "Campaign") {
+            await markSkipped(
+              p,
+              "campaign_position_reserved",
+              `position ${insertOpts.position} reservada por campanha (track=${(occ as any).spotify_track_id})`,
+              1800,
+              null,
+            );
+            cntSkipped++;
+            continue;
+          }
+        } catch (_e) {
+          // Falha de leitura defensiva não deve derrubar o placement; a função
+          // SQL de cálculo já é a proteção primária.
+        }
+      }
+
       const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
       cntSpotify++;
       await persistLocalInsert(p.managed_playlist_id, p.spotify_track_id);
