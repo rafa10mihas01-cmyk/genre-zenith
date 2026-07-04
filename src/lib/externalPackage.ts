@@ -438,13 +438,14 @@ export async function confirmExternalPackage(args: {
     })
     .eq("id", packageId);
 
-  const primaryDealId = linkedDealIds[0];
-  if (primaryDealId) {
-    await supabase
-      .from("campaigns")
-      .update({ deal_id: primaryDealId })
-      .eq("id", campaignId);
-  }
+  // (2026-07-04) NÃO sobrescrever campaigns.deal_id com o deal real do curador.
+  // Arquitetura 1:N: campaigns.deal_id é RESERVADO ao stub interno da campanha
+  // (curator_id IS NULL, source='campaign_internal'). Vincular o deal real aqui
+  // fazia com que approve-campaign-plan estampasse source='campaign_internal'
+  // no deal real do curador — corrompendo o registro e ocultando-o de /deals.
+  // O vínculo curador↔campanha existe via curator_deals.campaign_id e
+  // campaign_external_package_items.curator_deal_id (já gravados acima).
+  // Um guardrail no banco também bloqueia essa escrita (enforce_campaign_deal_id_is_stub).
 
   return { dealsCreated: created };
 }

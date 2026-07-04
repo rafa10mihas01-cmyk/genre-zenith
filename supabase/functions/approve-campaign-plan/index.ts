@@ -640,11 +640,73 @@ Deno.serve(async (req) => {
     // managed playlists em curator_playlists. Sem isso, bot-collect-queue não
     // dispatcha e a baseline fica eternamente "Aguardando coleta".
     if (campaign.deal_id) {
-      const existingDealId = campaign.deal_id as string;
+      const currentDealId = campaign.deal_id as string;
       try {
-        // Deal já existia: marca como shadow de campanha e ATIVA direto.
-        // (Reversão 30/05: removido gate de awaiting_baseline — bot coleta
-        // como antes; a 1ª foto S4A passa a ser captura natural, não bloqueio.)
+        // Verifica se campaigns.deal_id aponta para um stub (curator_id IS NULL).
+        // Se apontar para um deal real de curador (corrupção histórica ou race),
+        // NÃO marcamos source='campaign_internal' nele — isso mascararia o deal
+        // real do curador em /deals. Em vez disso, resolvemos/criamos o stub
+        // correto e repointamos campaigns.deal_id pra ele.
+        const { data: currentDealRow } = await admin
+          .from("curator_deals")
+          .select("id, curator_id, source, campaign_id")
+          .eq("id", currentDealId)
+          .maybeSingle();
+
+        let stubDealId: string = currentDealId;
+
+        if (!currentDealRow || currentDealRow.curator_id != null) {
+          // deal_id aponta pra deal real (ou desapareceu). Procura stub existente da campanha.
+          const { data: existingStub } = await admin
+            .from("curator_deals")
+            .select("id")
+            .eq("campaign_id", campaignId)
+            .is("curator_id", null)
+            .eq("source", "campaign_internal")
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingStub?.id) {
+            stubDealId = existingStub.id;
+          } else {
+            // Cria um stub mínimo pra própria campanha.
+            const { data: newStub, error: stubErr } = await admin
+              .from("curator_deals")
+              .insert({
+                user_id: campaign.created_by ?? userId,
+                curator_name: "Campanha",
+                song_spotify_url: campaign.spotify_track_url || (campaign.spotify_track_id ? `spotify:track:${campaign.spotify_track_id}` : ""),
+                song_name: campaign.track_name,
+                song_artist: campaign.artist,
+                song_cover_url: campaign.cover_url,
+                target_plays: Number(campaign.goal_plays ?? 0),
+                baseline_plays: 0,
+                cost: 0,
+                started_at: campaign.started_at ?? nowIso,
+                ends_at: campaign.deadline ? `${campaign.deadline}T23:59:59.000Z` : null,
+                state: "active",
+                source: "campaign_internal",
+                origin: "campaign",
+                campaign_id: campaignId,
+                collection_mode: "bot",
+              })
+              .select("id")
+              .single();
+            if (stubErr) throw stubErr;
+            stubDealId = newStub!.id;
+          }
+
+          // Repointa campaigns.deal_id pro stub — o guardrail do banco garante
+          // que só stubs são aceitos aqui, então nunca mais volta pra deal real.
+          await admin
+            .from("campaigns")
+            .update({ deal_id: stubDealId })
+            .eq("id", campaignId);
+        }
+
+        // Marca só o STUB como shadow ativo. Guardrail do banco impediria
+        // qualquer tentativa de estampar em deal real.
         await admin
           .from("curator_deals")
           .update({
@@ -653,22 +715,21 @@ Deno.serve(async (req) => {
             collection_mode: "bot",
             state: "active",
           })
-          .eq("id", existingDealId);
-
+          .eq("id", stubDealId)
+          .is("curator_id", null);
 
         await admin
           .from("curator_deal_songs")
           .update({ auto_collect: true, next_auto_collect_at: new Date().toISOString() })
-          .eq("deal_id", existingDealId);
+          .eq("deal_id", stubDealId);
 
         // Promove TODOS os demais curator_deals da mesma campanha (external
         // package / múltiplos curadores) que ainda estejam em collecting.
-        // Sem isso, deals secundários ficam travados e o bot nunca dispara.
         const { data: promotedSecondary } = await admin
           .from("curator_deals")
           .update({ state: "active" })
           .eq("campaign_id", campaignId)
-          .neq("id", existingDealId)
+          .neq("id", stubDealId)
           .in("state", ["collecting", "awaiting_baseline"])
           .select("id");
 
@@ -676,7 +737,7 @@ Deno.serve(async (req) => {
           ok: true,
           already_approved: false,
           deal_created: false,
-          deal_id: existingDealId,
+          deal_id: stubDealId,
           shadow_prepared: true,
           seeded_playlists: 0,
           promoted_secondary_deals: promotedSecondary?.length ?? 0,
@@ -687,7 +748,7 @@ Deno.serve(async (req) => {
           ok: true,
           already_approved: false,
           deal_created: false,
-          deal_id: existingDealId,
+          deal_id: currentDealId,
           shadow_prepared: false,
           error: (e as Error).message,
           flag_on: flagOn,
