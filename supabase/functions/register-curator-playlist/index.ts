@@ -442,25 +442,26 @@ Deno.serve(async (req) => {
 
 
       const ITEM_TIMEOUT_MS = 15_000;
-      // PROCESSAMENTO SEQUENCIAL: 1 playlist por vez, com pequena pausa entre elas.
-      // Por que: rajada paralela estourava 429 do Spotify e gerava placeholder
-      // "Playlist Spotify XYZ" sem capa. Sequencial + retry interno do
-      // fetchPlaylistMeta dá taxa muito melhor mesmo com 30+ links.
-      const SPACING_MS = 180;
+      // PROCESSAMENTO EM LOTES PARALELOS (Fase pós-Carnívoro):
+      // Antes era sequencial (1 por vez + 180ms de pausa), o que dava ~1min por
+      // URL em picos de latência do Spotify e estourava o fetch do navegador
+      // do curador (5G corta antes de 60s). Agora processamos em lotes de 4
+      // em paralelo, o que corta o tempo total pra ~1/4 mantendo o mesmo
+      // controle de rate-limit (retry interno de fetchPlaylistMeta cobre 429).
+      const BATCH_SIZE = 4;
+      const BATCH_SPACING_MS = 250;
       const processable = items.filter((it) => it.status === "ok" && it.playlist_id);
 
       const sleepMs = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-      for (let i = 0; i < processable.length; i++) {
-        const item = processable[i];
+      const processOne = async (item: ProcessedItem) => {
         const pid = item.playlist_id!;
         try {
           let meta: SpotifyPlaylistMeta | null = null;
           try {
             meta = await withTimeout(fetchPlaylistMeta(pid), ITEM_TIMEOUT_MS, "spotify_timeout");
-          } catch (e) {
-            // Uma segunda tentativa isolada, com uma pausa maior — cobre 429
-            // residual depois do retry interno.
+          } catch (_e) {
+            // Segunda tentativa isolada, com pausa maior — cobre 429 residual.
             await sleepMs(1200);
             try {
               meta = await withTimeout(fetchPlaylistMeta(pid), ITEM_TIMEOUT_MS, "spotify_timeout");
@@ -476,45 +477,49 @@ Deno.serve(async (req) => {
           }
           if (!meta) {
             item.status = "not_found";
+            return;
+          }
+          item.meta = meta;
+          if (publicToken) {
+            item.match_status = "curator";
+            item.match_reason = "declarada pelo curador via portal";
           } else {
-            item.meta = meta;
-            if (publicToken) {
-              item.match_status = "curator";
-              item.match_reason = "declarada pelo curador via portal";
-            } else {
-              const cls = classifyPlaylist({
-                playlist: meta,
-                dealOwnerId: deal!.spotify_owner_id,
-                dealStartedAt: deal!.started_at,
-                addedAtSpotify: null,
-                knownCuratorOwnerIds,
-                curatorPlaylistNames,
-              });
-              item.match_status = cls.match_status;
-              item.match_reason = cls.match_reason;
-            }
-            try {
-              item.track_presence = await withTimeout(
-                checkTrackInPlaylist(pid, trackIdToCheck),
-                ITEM_TIMEOUT_MS,
-                "spotify_timeout",
-              );
-            } catch (e) {
-              if (requireTrackPresent) throw e;
-              const msg = e instanceof Error ? e.message : String(e);
-              item.error = item.error ?? `Não foi possível verificar presença da faixa no Spotify: ${msg}`;
-            }
-            if (requireTrackPresent && !item.track_presence?.found) {
-              item.status = "track_not_present";
-            }
+            const cls = classifyPlaylist({
+              playlist: meta,
+              dealOwnerId: deal!.spotify_owner_id,
+              dealStartedAt: deal!.started_at,
+              addedAtSpotify: null,
+              knownCuratorOwnerIds,
+              curatorPlaylistNames,
+            });
+            item.match_status = cls.match_status;
+            item.match_reason = cls.match_reason;
+          }
+          try {
+            item.track_presence = await withTimeout(
+              checkTrackInPlaylist(pid, trackIdToCheck),
+              ITEM_TIMEOUT_MS,
+              "spotify_timeout",
+            );
+          } catch (e) {
+            if (requireTrackPresent) throw e;
+            const msg = e instanceof Error ? e.message : String(e);
+            item.error = item.error ?? `Não foi possível verificar presença da faixa no Spotify: ${msg}`;
+          }
+          if (requireTrackPresent && !item.track_presence?.found) {
+            item.status = "track_not_present";
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           item.status = msg === "spotify_timeout" ? "timeout" : "error";
           item.error = msg;
         }
-        // pausa entre playlists para não saturar Spotify
-        if (i + 1 < processable.length) await sleepMs(SPACING_MS);
+      };
+
+      for (let i = 0; i < processable.length; i += BATCH_SIZE) {
+        const batch = processable.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(processOne));
+        if (i + BATCH_SIZE < processable.length) await sleepMs(BATCH_SPACING_MS);
       }
 
       // Modo preview: não salva, só devolve o que aconteceria
