@@ -135,13 +135,17 @@ async function runCatalogPlacements(sb: any, limit: number) {
   const trackIds = Array.from(new Set(rows.map((r) => r.catalog_track_id)));
   const playlistIds = Array.from(new Set(rows.map((r) => r.managed_playlist_id)));
 
-  const [{ data: tracks, error: tErr }, { data: playlists, error: pErr }] = await Promise.all([
+  const [{ data: tracks, error: tErr }, { data: playlists, error: pErr }, { data: campaignsActive }] = await Promise.all([
     sb.from("catalog_tracks")
       .select("id, spotify_track_id, spotify_uri")
       .in("id", trackIds),
     sb.from("managed_playlists")
       .select("id, spotify_playlist_id, owner_spotify_user_id, tracks_count, operational_status, execution_mode")
       .in("id", playlistIds),
+    sb.from("campaigns")
+      .select("catalog_track_id")
+      .in("catalog_track_id", trackIds)
+      .eq("status", "active"),
   ]);
 
   if (tErr || pErr) {
@@ -155,6 +159,10 @@ async function runCatalogPlacements(sb: any, limit: number) {
   for (const t of tracks ?? []) tMap.set(t.id, t);
   const pMap = new Map<string, any>();
   for (const p of playlists ?? []) pMap.set(p.id, p);
+  const activeCampaignTracks = new Set<string>();
+  for (const c of campaignsActive ?? []) {
+    if ((c as any).catalog_track_id) activeCampaignTracks.add((c as any).catalog_track_id);
+  }
 
   const enriched: CPEnriched[] = [];
   let cntInvalid = 0;
@@ -194,8 +202,10 @@ async function runCatalogPlacements(sb: any, limit: number) {
       tracks_count: typeof p.tracks_count === "number" ? p.tracks_count : null,
       spotify_track_id: t.spotify_track_id,
       spotify_uri: t.spotify_uri ?? null,
+      is_campaign_active: activeCampaignTracks.has(r.catalog_track_id),
     });
   }
+
 
   // Caches por execução.
   const tokenCache = new Map<string, string>();
