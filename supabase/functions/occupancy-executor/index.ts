@@ -63,7 +63,9 @@ type CPEnriched = CPRow & {
   tracks_count: number | null;
   spotify_track_id: string;
   spotify_uri: string | null;
+  is_campaign_active: boolean;
 };
+
 
 type Decision =
   | { action: "INSERT" }
