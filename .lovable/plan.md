@@ -1,86 +1,57 @@
 
-## Objetivo
+# Nova regra de posicionamento de catálogo
 
-Quando uma música do catálogo vira campanha, o planner ECO precisa **partir do estado real** da faixa nas playlists do pool, decidindo entre três ações por playlist:
+## O que vai mudar (em linguagem de negócio)
 
-| Ação | Quando |
-|---|---|
-| **KEEP** (manter) | Faixa já está em posição ≥ que a posição-alvo planejada |
-| **REPOSITION** (promover) | Faixa já está, mas em posição pior que o alvo |
-| **INSERT** (inserir) | Faixa não está na playlist e é necessária pra meta |
+1. **Playlists pequenas (≤ 5.000 seguidores)** — catálogo pode entrar em qualquer posição, inclusive na 1, desde que **nunca fique duas do catálogo em sequência** (sempre alterna com terceiros).
+2. **Playlists grandes (> 5.000 seguidores)** — posições **1 a 5 ficam reservadas** para músicas de campanhas ativas / hot releases. Catálogo só pode entrar a partir da **posição 6**, mantendo a mesma alternância.
+3. **Exceção da regra 2:** se a música do catálogo estiver amarrada a uma **campanha ativa**, ela pode ocupar 1-5 mesmo em playlist grande.
+4. **Sempre** grava a posição no banco E manda para o Spotify — nunca mais "cai no fim da playlist" por default.
 
-O Campaign Engine, ECO, Curadores, Rádio e cálculos de capacidade **não mudam**. A única diferença é a etapa de leitura do estado atual antes de aplicar o algoritmo já existente.
+> Observação: o sistema hoje não tem métrica de "ouvintes mensais de playlist" (isso é métrica de artista). Vou usar **`followers` da playlist como proxy** — que é o número que já sustentamos em `managed_playlists.followers`. Se você quiser trocar depois pelo dado da VPS/observer, é só apontar a nova coluna.
 
-## Estado atual do código
+---
 
-- **Backend (`approve-campaign-plan`)** já lê `managed_playlist_tracks` e passa `currentPositionById` para `distributeByDailyNeed`, que usa a posição atual como teto (nunca rebaixa) e dá leve preferência em empates. Funciona, mas é invisível para o operador.
-- **Frontend (`useEcoRealCapacity` + `CapacidadeRealCard`)** ignora completamente a presença atual. O preview monta o plano "do zero", então o operador vê 17 inserções quando na verdade 12 já estão lá.
-- **Edge `replan-campaign-eco`** também não usa presença no preview de capacidade, só na hora de aprovar.
+## O que vou construir
 
-O gap é só de **leitura + classificação de ação**, não de cálculo.
+### 1. Nova função SQL `fn_compute_catalog_target_position(playlist_id, spotify_track_id, is_campaign_active)`
 
-## Mudanças
+Retorna a **primeira posição válida** para inserir a faixa, aplicando a regra acima. Passos:
 
-### 1. `src/lib/campaignOperationalPlan.ts` — `planRealCapacity` aceita posições atuais
+1. Carrega a playlist inteira em ordem (`managed_playlist_tracks`).
+2. Marca cada faixa como `catalog` (se aparece em `catalog_tracks`) ou `terceiro`.
+3. Lê `followers` da playlist para escolher o piso: `1` (≤5k) ou `6` (>5k, exceto quando `is_campaign_active=true` → piso volta a `1`).
+4. Percorre do piso até o fim procurando a primeira posição `p` onde: `faixa[p-1]` não é catálogo **e** `faixa[p]` (a que vai ser empurrada pra baixo) não é catálogo.
+5. Se não achar nenhuma slot válido no meio, devolve `tracks_count` (append no fim) — cenário raro (playlist cheia de catálogo colado). Devolve também `reason` explicando a decisão.
 
-Adiciona parâmetro opcional `currentPositionById: Map<string, number>` e, para cada playlist:
+### 2. Ajuste no worker `occupancy-executor`
 
-- Se a faixa já está em posição **melhor ou igual** ao alvo greedy → cria allocation com `action: "keep"`, `position = currentPosition`, `cap_dia` recalculado pela posição atual. Não consome `remaining`.
-- Se a faixa está em posição **pior** que o alvo → allocation com `action: "reposition"`, `position = alvo`, `previousPosition = currentPosition`.
-- Se a faixa **não está** → allocation com `action: "insert"`, comportamento atual.
+- Antes do `addPlaylistTracks`, chama `fn_compute_catalog_target_position` passando um flag `is_campaign_active` (calculado com um `EXISTS` em campanhas ativas que referenciam a track).
+- Passa `position` para o Spotify: `addPlaylistTracks(playlistId, [uri], token, { position })`.
+- Grava `position` no `catalog_placements.position` no `markActive` (hoje está `NULL` pra tudo desde 26/jun).
+- Passa `position` também para `mptInsertFromCatalog` para manter `managed_playlist_tracks.position` consistente localmente.
 
-Tipo `RealCapacityAlloc` ganha:
-```ts
-action: "keep" | "reposition" | "insert";
-previousPosition?: number; // só em reposition/keep
-```
+### 3. Log de auditoria da decisão
 
-### 2. `src/hooks/useEcoRealCapacity.ts` — busca presença
+Estende `catalog_placement_execution_log` para gravar `position_reason` (ex.: `"pos=1 followers=3200 alt_ok"`, `"pos=6 hot_zone_skip"`, `"pos=42 fallback_append"`). Isso permite auditar depois se a regra está sendo respeitada em produção.
 
-Passa a aceitar `spotifyTrackId?: string`. Quando presente:
+### 4. Correção do passivo (opcional, você aprova depois)
 
-1. Faz um `select playlist_id, position from managed_playlist_tracks where spotify_track_id = ? and playlist_id in (pool)`.
-2. Monta `currentPositionById` e repassa pra `planRealCapacity`.
+As ~583 placements de **Passa O Bigode 2** e **O Tbt que ele Quer** hoje estão empilhadas no FIM das playlists (posição relativa ~1.0). Depois da correção, posso rodar um "reposicionador" que remove essas faixas do fim e reinsere na posição correta — um lote controlado por playlist, respeitando rate limit do Spotify. **Isso não faz parte desta entrega inicial** — entrego a nova regra rodando pra frente e você decide se quer reprocessar o passivo.
 
-Sem `spotifyTrackId` (campanha sem faixa do catálogo) o comportamento é idêntico ao atual.
+---
 
-### 3. `src/components/operacao/calculadora/CapacidadeRealCard.tsx` — surface das ações
+## Ordem de execução
 
-- Resumo no topo: "**12 manter · 3 reposicionar · 2 inserir** · 17 playlists no plano"
-- Cada linha da lista expandida ganha badge da ação:
-  - 🟢 `Manter #3`
-  - 🟡 `Reposicionar #18 → #5`
-  - 🔵 `Inserir #5`
+1. Migration: criar `fn_compute_catalog_target_position` + adicionar coluna `position_reason TEXT` em `catalog_placement_execution_log`.
+2. Editar `supabase/functions/occupancy-executor/index.ts` para chamar a nova função, passar `position` pro Spotify e persistir.
+3. Deploy da edge function.
+4. Validação em produção: rodar 5-10 minutos, ler `catalog_placement_execution_log` e conferir que `position_reason` bate com a regra.
 
-### 4. `src/components/operacao/calculadora/Calculadora.tsx`
+---
 
-Passa `active.track?.id` (spotify_track_id) para o hook `useEcoRealCapacity`.
+## Perguntas antes de eu apertar o botão
 
-### 5. Edge `replan-campaign-eco` (opcional, só pra paridade)
-
-Adiciona o mesmo `currentPositionById` que `approve-campaign-plan` já faz, pra que o preview de replan reflita a presença. Sem mudar nenhuma fórmula.
-
-## O que NÃO muda
-
-- `campaignEngine.ts` — intocado
-- Splits ECO / Curadores / Rádio — intocados
-- Fórmula de capacidade (`saves × mult/30 × POSITION_PCT`) — intocada
-- `planEcoAllocations`, `distributeByDailyNeed`, `distributeEcoPositions` — intocados
-- Motor de Catálogo (`catalog-executor`, `process-catalog-placements`) — intocado
-- Banco — nenhuma migration
-
-## Resultado esperado
-
-No card de capacidade, antes de aprovar:
-
-```
-17 playlists · Forró +16 vizinhos
-12 manter · 3 reposicionar · 2 inserir
-
-Playlist A    Reposicionar #18 → #5    2.1k/dia
-Playlist B    Manter #3                3.4k/dia
-Playlist C    Inserir #5               1.8k/dia
-…
-```
-
-Ao aprovar, o backend (`approve-campaign-plan`) já faz exatamente isso hoje — só estamos refletindo no preview o que o approve já decide. Nenhum re-trabalho de catálogo, nenhuma posição rebaixada.
+- **Confirma que `followers` é o número certo pra usar como corte de 5.000?** (é o que temos hoje). Se você tem outra fonte, me diga qual coluna/tabela.
+- **"Hot release" (>5k, posições 1-5)** — considero como "hot" apenas músicas com **campanha ativa vinculada**? Ou você quer também uma flag manual tipo `catalog_tracks.is_hot_release`?
+- **Reprocessar o passivo** de Passa O Bigode + O Tbt depois? (recomendo fortemente — hoje elas estão invisíveis no fim de ~583 playlists).
