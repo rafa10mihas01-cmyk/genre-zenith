@@ -16037,6 +16037,13 @@ export type Database = {
         }[]
       }
       fn_sanitize_catalog_pending: { Args: { p_limit?: number }; Returns: Json }
+      fn_unblock_diagnose_403_recovered: {
+        Args: never
+        Returns: {
+          playlist_ids: string[]
+          unblocked_count: number
+        }[]
+      }
       force_close_spotify_circuit_breaker: {
         Args: { p_app_id: string; p_context?: string }
         Returns: Json
