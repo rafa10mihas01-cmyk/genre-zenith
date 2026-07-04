@@ -15860,6 +15860,7 @@ export type Database = {
         }
         Returns: Json
       }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       engine_backfill_legacy_distribution_plan: {
         Args: { _days?: number; _track_id: string }
         Returns: string
