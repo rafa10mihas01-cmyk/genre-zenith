@@ -275,31 +275,54 @@ async function runCatalogPlacements(sb: any, limit: number) {
     return { permanent: false, delaySec: 1800, statusReason: reason };
   }
 
-  async function logExec(p: CPEnriched, outcome: string, code: string | null, snapId: string | null, msg: string | null) {
+  async function logExec(
+    p: CPEnriched,
+    outcome: string,
+    code: string | null,
+    snapId: string | null,
+    msg: string | null,
+    finalPosition: number | null = null,
+    positionReason: string | null = null,
+  ) {
     await sb.from("catalog_placement_execution_log").insert({
       placement_id: p.id,
       catalog_track_id: p.catalog_track_id,
       managed_playlist_id: p.managed_playlist_id,
       spotify_playlist_id: p.spotify_playlist_id,
       spotify_track_id: p.spotify_track_id,
-      position: p.position,
+      position: finalPosition ?? p.position,
       outcome,
       error_code: code,
       error_message: _trim(msg),
       snapshot_id: snapId,
+      position_reason: positionReason,
     });
   }
 
-  async function markActive(p: CPEnriched, source: string, snap: string | null) {
-    await sb.from("catalog_placements").update({
+  async function markActive(
+    p: CPEnriched,
+    source: string,
+    snap: string | null,
+    finalPosition: number | null = null,
+    positionReason: string | null = null,
+  ) {
+    const update: Record<string, unknown> = {
       status: "active",
       added_at: new Date().toISOString(),
       last_error_code: null,
       locked_at: null, locked_by: null, lease_expires_at: null,
-    }).eq("id", p.id);
-    await logExec(p, source === "already_present" ? "already_present" : "active", null, snap, `source=${source}`);
+    };
+    if (typeof finalPosition === "number") update.position = finalPosition;
+    await sb.from("catalog_placements").update(update).eq("id", p.id);
+    await logExec(
+      p,
+      source === "already_present" ? "already_present" : "active",
+      null, snap, `source=${source}`,
+      finalPosition, positionReason,
+    );
     cntActive++;
   }
+
 
   async function markRetry(p: CPEnriched, code: string, msg: string | null) {
     if (p.attempts >= p.max_attempts) {
