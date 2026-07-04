@@ -2708,6 +2708,9 @@ export type Database = {
           priority: number
           removed_at: string | null
           removed_reason: string | null
+          reposition_attempts: number
+          reposition_last_error: string | null
+          repositioned_at: string | null
           scheduled_for: string
           skip_reason: string | null
           skipped_at: string | null
@@ -2732,6 +2735,9 @@ export type Database = {
           priority?: number
           removed_at?: string | null
           removed_reason?: string | null
+          reposition_attempts?: number
+          reposition_last_error?: string | null
+          repositioned_at?: string | null
           scheduled_for?: string
           skip_reason?: string | null
           skipped_at?: string | null
@@ -2756,6 +2762,9 @@ export type Database = {
           priority?: number
           removed_at?: string | null
           removed_reason?: string | null
+          reposition_attempts?: number
+          reposition_last_error?: string | null
+          repositioned_at?: string | null
           scheduled_for?: string
           skip_reason?: string | null
           skipped_at?: string | null
@@ -15546,6 +15555,9 @@ export type Database = {
           priority: number
           removed_at: string | null
           removed_reason: string | null
+          reposition_attempts: number
+          reposition_last_error: string | null
+          repositioned_at: string | null
           scheduled_for: string
           skip_reason: string | null
           skipped_at: string | null
@@ -15558,6 +15570,15 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_next_catalog_repositions: {
+        Args: { _limit: number; _worker: string }
+        Returns: {
+          attempts: number
+          catalog_track_id: string
+          id: string
+          managed_playlist_id: string
+        }[]
       }
       claim_next_catalog_snapshots: {
         Args: {
