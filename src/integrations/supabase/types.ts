@@ -15529,6 +15529,10 @@ export type Database = {
       cancel_campaign: { Args: { p_campaign_id: string }; Returns: Json }
       capture_baseline: { Args: { p_campaign_id: string }; Returns: Json }
       catalog_daily_distribution_stats: { Args: never; Returns: Json }
+      check_catalog_placements_null_position: {
+        Args: never
+        Returns: undefined
+      }
       claim_collect_queue: {
         Args: { p_ids: string[] }
         Returns: {
