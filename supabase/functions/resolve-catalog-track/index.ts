@@ -68,18 +68,51 @@ Deno.serve(async (req) => {
       typeof body?.url === "string" ? body.url :
       typeof body?.uri === "string" ? body.uri : "";
 
-    const trackId = resolveTrackId(inputRaw);
-    if (!trackId) {
+    const resolved = resolveInput(inputRaw);
+    if (!resolved) {
       return jr({
         ok: false, error: "invalid_input",
-        message: "Envie um Spotify track ID (22 chars), URI (spotify:track:...) ou URL (open.spotify.com/track/...).",
+        message: "Envie um Spotify track/álbum: ID (22 chars), URI (spotify:track:... / spotify:album:...) ou URL (open.spotify.com/track/... ou /album/...).",
       }, 200);
+    }
+
+    let trackId = resolved.kind === "track" ? resolved.id : "";
+    // Álbum: resolve a única track se for single; se tiver múltiplas, devolve a lista pra UI escolher.
+    if (resolved.kind === "album") {
+      const alb = await fetchAlbumTracks(resolved.id, "resolve-catalog-track");
+      if (!alb.ok) {
+        return jr({
+          ok: false, error: alb.error, details: alb.details ?? null,
+          spotify_album_id: resolved.id,
+        }, alb.status === 404 ? 404 : alb.status >= 500 ? 502 : alb.status);
+      }
+      if (alb.tracks.length === 0) {
+        return jr({ ok: false, error: "album_empty", message: "Álbum sem faixas disponíveis.", spotify_album_id: resolved.id }, 200);
+      }
+      if (alb.tracks.length === 1) {
+        trackId = alb.tracks[0].id;
+      } else {
+        // Múltiplas faixas — UI decide qual usar.
+        return jr({
+          ok: false,
+          error: "album_multiple_tracks",
+          message: "Este álbum tem mais de uma faixa. Escolha qual cadastrar.",
+          spotify_album_id: resolved.id,
+          album_name: alb.album_name,
+          album_tracks: alb.tracks.map((t) => ({
+            spotify_track_id: t.id,
+            track_name: t.name,
+            artist_name: t.artists.join(", "),
+          })),
+        }, 200);
+      }
     }
 
     // Fase 17-C — EXCEÇÃO documentada: cadastro manual user-driven faz
     // hidratação síncrona em cache miss (1 fetch via gateway + upsert).
     // Worker e processos automáticos continuam 100% cache-first.
     const hydrate = await hydrateTrackSync(trackId, "resolve-catalog-track");
+
     if (!hydrate.ok) {
       return jr({
         ok: false,
