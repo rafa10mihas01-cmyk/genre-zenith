@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
   const list = (jobs ?? []) as Job[];
   if (list.length === 0) return jr({ ok: true, claimed: 0, processed: 0 });
 
-  // Fase 17-B.2: tokens vêm do Catalog Gateway (pool CC NexEngine 05/10).
+  // Fase 17-B.2: tokens vêm do Catalog Gateway (pool CC NexEngine 10).
   // ccFetch lida com aquisição/refresh de token internamente.
 
   const results = { done: 0, not_found: 0, forbidden: 0, retry: 0, failed: 0 };
