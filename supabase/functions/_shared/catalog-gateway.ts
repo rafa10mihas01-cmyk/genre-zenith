@@ -93,7 +93,8 @@ function fireAndForgetLog(row: GatewayLog): void {
 //
 // Isso NÃO afeta o balanceador OAuth — todas as 4 apps continuam disponíveis
 // para escrita (add/remove/reorder/cover) via getSpotifyTokenWithApp.
-const GATEWAY_CC_APP_ALLOWLIST = ["NexEngine 05", "NexEngine 10"] as const;
+// NexEngine 05 foi REMOVIDO (quarantined + owner ban 403). Pool CC atual = NexEngine 10.
+const GATEWAY_CC_APP_ALLOWLIST = ["NexEngine 10"] as const;
 
 type CachedToken = { token: string; expiresAt: number; appName: string };
 const gatewayTokenCache = new Map<string, CachedToken>(); // key = client_id
@@ -107,7 +108,7 @@ async function pickGatewayApp(): Promise<{ client_id: string; client_secret: str
   if (error) throw new Error(`[catalog-gateway] pool lookup: ${error.message}`);
   const rows = (data ?? []) as Array<{ name: string; client_id: string; client_secret: string }>;
   if (rows.length === 0) {
-    throw new Error("[catalog-gateway] nenhuma App do pool CC saudável disponível (esperado: NexEngine 05 ou 10)");
+    throw new Error("[catalog-gateway] nenhuma App do pool CC saudável disponível (esperado: NexEngine 10)");
   }
   // Round-robin aleatório simples entre as apps saudáveis do pool.
   return rows[Math.floor(Math.random() * rows.length)];
@@ -213,7 +214,7 @@ export { getTrackCacheBatch as getTracksBatch, getArtistCacheBatch as getArtists
 // ---------------------------------------------------------------------------
 // BATCH helpers (Fase 17-B.5.1)
 // ---------------------------------------------------------------------------
-// IMPORTANTE: o pool atual do Gateway CC (NexEngine 05 / 10) **NÃO suporta**
+// IMPORTANTE: o pool atual do Gateway CC (NexEngine 10) **NÃO suporta**
 // os endpoints batch da Spotify (`/v1/tracks?ids=`, `/v1/artists?ids=`).
 // Eles retornam 403 ("Active premium subscription required for the owner of
 // the app") mesmo com token CC válido — restrição de cota imposta pela

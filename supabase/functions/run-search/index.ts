@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
   try {
     await supabase.from("genres").update({ status: "coletando" }).eq("id", body.genre_id);
 
-    // Token gerenciado pelo Catalog Gateway (pool CC NexEngine 05/10).
+    // Token gerenciado pelo Catalog Gateway (pool CC NexEngine 10).
 
     const allTracks: any[] = [];
     const allPlaylists: any[] = [];

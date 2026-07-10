@@ -1,7 +1,7 @@
 // fetch-tracks-spotify — busca tracks de uma playlist via Spotify Web API.
 //
 // Fase 17-B.6 (Onda revisada): MIGRADO para roteamento HÍBRIDO.
-//   - Playlist pública  → Catalog Gateway (Client Credentials, NexEngine 05/10)
+//   - Playlist pública  → Catalog Gateway (Client Credentials, NexEngine 10)
 //   - Playlist managed  → OAuth do owner (via spotify-client + getUserToken)
 //
 // Decisão de rota é feita ANTES da chamada, consultando managed_playlists.
