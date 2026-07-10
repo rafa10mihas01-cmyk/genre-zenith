@@ -78,14 +78,44 @@ Deno.serve(async (req) => {
       typeof body?.uri === "string" ? body.uri : "";
     const genreId = typeof body?.genre_id === "string" ? body.genre_id.trim() : "";
 
-    const trackId = resolveTrackId(inputRaw);
+    let trackId = resolveTrackId(inputRaw);
+    if (!trackId) {
+      // Aceita URL/URI de álbum: se single (1 faixa) usa direto; se múltiplas, exige escolha.
+      const albumId = resolveAlbumId(inputRaw);
+      if (albumId) {
+        const alb = await fetchAlbumTracks(albumId, "distribute-catalog-track");
+        if (!alb.ok) {
+          return jr({ ok: false, error: alb.error, details: alb.details ?? null, spotify_album_id: albumId },
+            alb.status === 404 ? 404 : alb.status >= 500 ? 502 : alb.status);
+        }
+        if (alb.tracks.length === 1) {
+          trackId = alb.tracks[0].id;
+        } else if (alb.tracks.length > 1) {
+          return jr({
+            ok: false,
+            error: "album_multiple_tracks",
+            message: "Este álbum tem mais de uma faixa. Escolha qual cadastrar.",
+            spotify_album_id: albumId,
+            album_name: alb.album_name,
+            album_tracks: alb.tracks.map((t) => ({
+              spotify_track_id: t.id,
+              track_name: t.name,
+              artist_name: t.artists.join(", "),
+            })),
+          }, 400);
+        } else {
+          return jr({ ok: false, error: "album_empty", spotify_album_id: albumId }, 400);
+        }
+      }
+    }
     if (!trackId) {
       return jr({
         ok: false,
         error: "invalid_input",
-        message: "Envie um Spotify track ID (22 chars), URI (spotify:track:...) ou URL (open.spotify.com/track/...).",
+        message: "Envie um Spotify track/álbum: ID (22 chars), URI (spotify:track:... / spotify:album:...) ou URL (open.spotify.com/track/... ou /album/...).",
       }, 400);
     }
+
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(genreId)) {
       return jr({ ok: false, error: "invalid_genre_id", message: "genre_id (uuid) é obrigatório." }, 400);
     }
