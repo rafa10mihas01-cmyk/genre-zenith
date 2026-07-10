@@ -258,6 +258,8 @@ async function runCatalogPlacements(sb: any, limit: number) {
   const PERMANENT_ERROR_CODES = new Set([
     "owner_token_missing",
     "spotify_401",
+    "spotify_403",
+    "spotify_404",
     "spotify_auth_invalid",
     "spotify_refresh_failed",
     "blocked_owner_token",
