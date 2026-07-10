@@ -214,7 +214,7 @@ export { getTrackCacheBatch as getTracksBatch, getArtistCacheBatch as getArtists
 // ---------------------------------------------------------------------------
 // BATCH helpers (Fase 17-B.5.1)
 // ---------------------------------------------------------------------------
-// IMPORTANTE: o pool atual do Gateway CC (NexEngine 05 / 10) **NÃO suporta**
+// IMPORTANTE: o pool atual do Gateway CC (NexEngine 10) **NÃO suporta**
 // os endpoints batch da Spotify (`/v1/tracks?ids=`, `/v1/artists?ids=`).
 // Eles retornam 403 ("Active premium subscription required for the owner of
 // the app") mesmo com token CC válido — restrição de cota imposta pela
