@@ -108,7 +108,7 @@ async function pickGatewayApp(): Promise<{ client_id: string; client_secret: str
   if (error) throw new Error(`[catalog-gateway] pool lookup: ${error.message}`);
   const rows = (data ?? []) as Array<{ name: string; client_id: string; client_secret: string }>;
   if (rows.length === 0) {
-    throw new Error("[catalog-gateway] nenhuma App do pool CC saudável disponível (esperado: NexEngine 05 ou 10)");
+    throw new Error("[catalog-gateway] nenhuma App do pool CC saudável disponível (esperado: NexEngine 10)");
   }
   // Round-robin aleatório simples entre as apps saudáveis do pool.
   return rows[Math.floor(Math.random() * rows.length)];
