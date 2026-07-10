@@ -4,7 +4,7 @@
 // Sem efeitos colaterais. Idempotente.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getArtistCacheBatch, hydrateTrackSync } from "../_shared/spotify-cache.ts";
+import { fetchAlbumTracks, getArtistCacheBatch, hydrateTrackSync } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -17,19 +17,31 @@ function jr(p: unknown, status = 200) {
 }
 
 const TRACK_ID_RE = /^[A-Za-z0-9]{22}$/;
-const URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([A-Za-z0-9]{22})/i;
-const URI_RE = /^spotify:track:([A-Za-z0-9]{22})$/i;
+const TRACK_URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([A-Za-z0-9]{22})/i;
+const TRACK_URI_RE = /^spotify:track:([A-Za-z0-9]{22})$/i;
+const ALBUM_URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?album\/([A-Za-z0-9]{22})/i;
+const ALBUM_URI_RE = /^spotify:album:([A-Za-z0-9]{22})$/i;
 
-function resolveTrackId(input: string): string | null {
+type Resolved =
+  | { kind: "track"; id: string }
+  | { kind: "album"; id: string }
+  | null;
+
+function resolveInput(input: string): Resolved {
   const s = (input ?? "").trim();
   if (!s) return null;
-  if (TRACK_ID_RE.test(s)) return s;
-  const uri = s.match(URI_RE);
-  if (uri) return uri[1];
-  const url = s.match(URL_RE);
-  if (url) return url[1];
+  if (TRACK_ID_RE.test(s)) return { kind: "track", id: s };
+  const uri = s.match(TRACK_URI_RE);
+  if (uri) return { kind: "track", id: uri[1] };
+  const url = s.match(TRACK_URL_RE);
+  if (url) return { kind: "track", id: url[1] };
+  const aUri = s.match(ALBUM_URI_RE);
+  if (aUri) return { kind: "album", id: aUri[1] };
+  const aUrl = s.match(ALBUM_URL_RE);
+  if (aUrl) return { kind: "album", id: aUrl[1] };
   return null;
 }
+
 
 function joinArtists(artists: Array<{ name: string }>): string {
   return artists.map((a) => a.name).filter(Boolean).join(", ");
@@ -56,18 +68,51 @@ Deno.serve(async (req) => {
       typeof body?.url === "string" ? body.url :
       typeof body?.uri === "string" ? body.uri : "";
 
-    const trackId = resolveTrackId(inputRaw);
-    if (!trackId) {
+    const resolved = resolveInput(inputRaw);
+    if (!resolved) {
       return jr({
         ok: false, error: "invalid_input",
-        message: "Envie um Spotify track ID (22 chars), URI (spotify:track:...) ou URL (open.spotify.com/track/...).",
+        message: "Envie um Spotify track/álbum: ID (22 chars), URI (spotify:track:... / spotify:album:...) ou URL (open.spotify.com/track/... ou /album/...).",
       }, 200);
+    }
+
+    let trackId = resolved.kind === "track" ? resolved.id : "";
+    // Álbum: resolve a única track se for single; se tiver múltiplas, devolve a lista pra UI escolher.
+    if (resolved.kind === "album") {
+      const alb = await fetchAlbumTracks(resolved.id, "resolve-catalog-track");
+      if (!alb.ok) {
+        return jr({
+          ok: false, error: alb.error, details: alb.details ?? null,
+          spotify_album_id: resolved.id,
+        }, alb.status === 404 ? 404 : alb.status >= 500 ? 502 : alb.status);
+      }
+      if (alb.tracks.length === 0) {
+        return jr({ ok: false, error: "album_empty", message: "Álbum sem faixas disponíveis.", spotify_album_id: resolved.id }, 200);
+      }
+      if (alb.tracks.length === 1) {
+        trackId = alb.tracks[0].id;
+      } else {
+        // Múltiplas faixas — UI decide qual usar.
+        return jr({
+          ok: false,
+          error: "album_multiple_tracks",
+          message: "Este álbum tem mais de uma faixa. Escolha qual cadastrar.",
+          spotify_album_id: resolved.id,
+          album_name: alb.album_name,
+          album_tracks: alb.tracks.map((t) => ({
+            spotify_track_id: t.id,
+            track_name: t.name,
+            artist_name: t.artists.join(", "),
+          })),
+        }, 200);
+      }
     }
 
     // Fase 17-C — EXCEÇÃO documentada: cadastro manual user-driven faz
     // hidratação síncrona em cache miss (1 fetch via gateway + upsert).
     // Worker e processos automáticos continuam 100% cache-first.
     const hydrate = await hydrateTrackSync(trackId, "resolve-catalog-track");
+
     if (!hydrate.ok) {
       return jr({
         ok: false,

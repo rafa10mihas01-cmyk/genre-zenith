@@ -18,7 +18,7 @@
 // As únicas barreiras pra distribuição são capacidade e duplicidade.
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getArtistCacheBatch, hydrateTrackSync } from "../_shared/spotify-cache.ts";
+import { fetchAlbumTracks, getArtistCacheBatch, hydrateTrackSync } from "../_shared/spotify-cache.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -31,19 +31,32 @@ function jr(p: unknown, status = 200) {
 }
 
 const TRACK_ID_RE = /^[A-Za-z0-9]{22}$/;
-const URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([A-Za-z0-9]{22})/i;
-const URI_RE = /^spotify:track:([A-Za-z0-9]{22})$/i;
+const TRACK_URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([A-Za-z0-9]{22})/i;
+const TRACK_URI_RE = /^spotify:track:([A-Za-z0-9]{22})$/i;
+const ALBUM_URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?album\/([A-Za-z0-9]{22})/i;
+const ALBUM_URI_RE = /^spotify:album:([A-Za-z0-9]{22})$/i;
 
 function resolveTrackId(input: string): string | null {
   const s = input.trim();
   if (!s) return null;
   if (TRACK_ID_RE.test(s)) return s;
-  const uri = s.match(URI_RE);
+  const uri = s.match(TRACK_URI_RE);
   if (uri) return uri[1];
-  const url = s.match(URL_RE);
+  const url = s.match(TRACK_URL_RE);
   if (url) return url[1];
   return null;
 }
+
+function resolveAlbumId(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  const uri = s.match(ALBUM_URI_RE);
+  if (uri) return uri[1];
+  const url = s.match(ALBUM_URL_RE);
+  if (url) return url[1];
+  return null;
+}
+
 
 // Junta artistas no formato "Artist1, Artist2, ..." — o primeiro é o principal
 // (Spotify devolve artists[] já em ordem). Mesmo padrão usado em outras
@@ -65,14 +78,44 @@ Deno.serve(async (req) => {
       typeof body?.uri === "string" ? body.uri : "";
     const genreId = typeof body?.genre_id === "string" ? body.genre_id.trim() : "";
 
-    const trackId = resolveTrackId(inputRaw);
+    let trackId = resolveTrackId(inputRaw);
+    if (!trackId) {
+      // Aceita URL/URI de álbum: se single (1 faixa) usa direto; se múltiplas, exige escolha.
+      const albumId = resolveAlbumId(inputRaw);
+      if (albumId) {
+        const alb = await fetchAlbumTracks(albumId, "distribute-catalog-track");
+        if (!alb.ok) {
+          return jr({ ok: false, error: alb.error, details: alb.details ?? null, spotify_album_id: albumId },
+            alb.status === 404 ? 404 : alb.status >= 500 ? 502 : alb.status);
+        }
+        if (alb.tracks.length === 1) {
+          trackId = alb.tracks[0].id;
+        } else if (alb.tracks.length > 1) {
+          return jr({
+            ok: false,
+            error: "album_multiple_tracks",
+            message: "Este álbum tem mais de uma faixa. Escolha qual cadastrar.",
+            spotify_album_id: albumId,
+            album_name: alb.album_name,
+            album_tracks: alb.tracks.map((t) => ({
+              spotify_track_id: t.id,
+              track_name: t.name,
+              artist_name: t.artists.join(", "),
+            })),
+          }, 400);
+        } else {
+          return jr({ ok: false, error: "album_empty", spotify_album_id: albumId }, 400);
+        }
+      }
+    }
     if (!trackId) {
       return jr({
         ok: false,
         error: "invalid_input",
-        message: "Envie um Spotify track ID (22 chars), URI (spotify:track:...) ou URL (open.spotify.com/track/...).",
+        message: "Envie um Spotify track/álbum: ID (22 chars), URI (spotify:track:... / spotify:album:...) ou URL (open.spotify.com/track/... ou /album/...).",
       }, 400);
     }
+
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(genreId)) {
       return jr({ ok: false, error: "invalid_genre_id", message: "genre_id (uuid) é obrigatório." }, 400);
     }
