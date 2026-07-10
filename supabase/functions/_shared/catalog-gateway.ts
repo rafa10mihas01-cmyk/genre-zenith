@@ -93,7 +93,8 @@ function fireAndForgetLog(row: GatewayLog): void {
 //
 // Isso NÃO afeta o balanceador OAuth — todas as 4 apps continuam disponíveis
 // para escrita (add/remove/reorder/cover) via getSpotifyTokenWithApp.
-const GATEWAY_CC_APP_ALLOWLIST = ["NexEngine 05", "NexEngine 10"] as const;
+// NexEngine 05 foi REMOVIDO (quarantined + owner ban 403). Pool CC atual = NexEngine 10.
+const GATEWAY_CC_APP_ALLOWLIST = ["NexEngine 10"] as const;
 
 type CachedToken = { token: string; expiresAt: number; appName: string };
 const gatewayTokenCache = new Map<string, CachedToken>(); // key = client_id
