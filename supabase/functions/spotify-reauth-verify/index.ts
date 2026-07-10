@@ -7,7 +7,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const DEFAULT_APP_SLUG = "nexengine-05";
+const DEFAULT_APP_SLUG = "nexengine-10";
 const DEFAULT_TRACK = "spotify:track:11dFghVXANMlKmJXsNCbNl"; // Cut To The Feeling
 
 
