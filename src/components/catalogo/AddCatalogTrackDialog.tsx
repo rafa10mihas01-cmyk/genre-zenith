@@ -229,12 +229,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const renderStepIdleOrResolving = () => (
     <div className="space-y-2">
-      <Label htmlFor="track-input" className="text-[12px]">Spotify URL, URI ou Track ID</Label>
+      <Label htmlFor="track-input" className="text-[12px]">Spotify URL, URI ou ID (faixa ou álbum)</Label>
       <Input
         id="track-input"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="https://open.spotify.com/track/..."
+        placeholder="https://open.spotify.com/track/... ou /album/..."
+
         autoFocus
         autoComplete="off"
         spellCheck={false}
