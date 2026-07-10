@@ -269,3 +269,38 @@ export async function hydrateTrackSync(
   return { ok: true, row };
 }
 
+/**
+ * Resolve as tracks de um álbum via /v1/albums/{id}.
+ * Retorna a lista simplificada (id + name + artists). Sem cache — uso raro
+ * (só quando usuário cola URL de álbum no cadastro/edição de catálogo).
+ */
+export async function fetchAlbumTracks(
+  albumId: string,
+  caller: string,
+): Promise<
+  | { ok: true; album_name: string | null; tracks: Array<{ id: string; name: string; artists: string[] }> }
+  | { ok: false; status: number; error: string; details?: string }
+> {
+  const r = await ccFetch(`https://api.spotify.com/v1/albums/${albumId}`, caller, albumId);
+  if (!r.ok) {
+    const details = await r.text().catch(() => "");
+    return {
+      ok: false,
+      status: r.status,
+      error: r.status === 404 ? "spotify_album_not_found" : "spotify_album_lookup_failed",
+      details: details.slice(0, 300),
+    };
+  }
+  const j = await r.json();
+  const items: any[] = Array.isArray(j?.tracks?.items) ? j.tracks.items : [];
+  const tracks = items
+    .filter((it) => typeof it?.id === "string")
+    .map((it) => ({
+      id: it.id as string,
+      name: typeof it.name === "string" ? it.name : "",
+      artists: Array.isArray(it.artists) ? it.artists.map((a: any) => a?.name).filter(Boolean) : [],
+    }));
+  return { ok: true, album_name: typeof j?.name === "string" ? j.name : null, tracks };
+}
+
+
