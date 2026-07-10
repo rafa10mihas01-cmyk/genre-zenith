@@ -31,19 +31,32 @@ function jr(p: unknown, status = 200) {
 }
 
 const TRACK_ID_RE = /^[A-Za-z0-9]{22}$/;
-const URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([A-Za-z0-9]{22})/i;
-const URI_RE = /^spotify:track:([A-Za-z0-9]{22})$/i;
+const TRACK_URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?track\/([A-Za-z0-9]{22})/i;
+const TRACK_URI_RE = /^spotify:track:([A-Za-z0-9]{22})$/i;
+const ALBUM_URL_RE = /open\.spotify\.com\/(?:intl-[a-z]{2}\/)?album\/([A-Za-z0-9]{22})/i;
+const ALBUM_URI_RE = /^spotify:album:([A-Za-z0-9]{22})$/i;
 
 function resolveTrackId(input: string): string | null {
   const s = input.trim();
   if (!s) return null;
   if (TRACK_ID_RE.test(s)) return s;
-  const uri = s.match(URI_RE);
+  const uri = s.match(TRACK_URI_RE);
   if (uri) return uri[1];
-  const url = s.match(URL_RE);
+  const url = s.match(TRACK_URL_RE);
   if (url) return url[1];
   return null;
 }
+
+function resolveAlbumId(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  const uri = s.match(ALBUM_URI_RE);
+  if (uri) return uri[1];
+  const url = s.match(ALBUM_URL_RE);
+  if (url) return url[1];
+  return null;
+}
+
 
 // Junta artistas no formato "Artist1, Artist2, ..." — o primeiro é o principal
 // (Spotify devolve artists[] já em ordem). Mesmo padrão usado em outras
