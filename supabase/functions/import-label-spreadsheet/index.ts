@@ -1206,10 +1206,35 @@ Deno.serve(async (req) => {
             upload_id: uploadId,
             default_source: "label_spreadsheet",
           });
+          if (!result.ok) {
+            throw new Error(`collection_writer_skipped:${result.reason}`);
+          }
           console.log(`[mirror] writer ok campaign=${campaignIdForUpdate} ref=${referenceDate}`, JSON.stringify(result));
         }
       } catch (e) {
-        console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, (e as Error).message);
+        const message = e instanceof Error ? e.message : String(e);
+        console.error(`[mirror] exception campaign=${campaignIdForUpdate}`, message);
+        await admin
+          .from("label_spreadsheet_uploads")
+          .update({
+            status: "quarantined",
+            error_message: `collection_writer_failed: ${message}`,
+            quarantined_at: new Date().toISOString(),
+            quarantine_reason: "collection_writer_failed",
+            quarantine_signals: {
+              campaign_id: campaignIdForUpdate,
+              upload_id: uploadId,
+              rows_sent: allPlaylistRows.length,
+            },
+          })
+          .eq("id", uploadId);
+        return jr({
+          ok: false,
+          mode: "commit",
+          error: "collection_writer_failed",
+          message,
+          upload_id: uploadId,
+        }, 200);
       }
 
       // 3c) Atualiza campaigns.total_delivered DEPOIS de gravar as collections.
