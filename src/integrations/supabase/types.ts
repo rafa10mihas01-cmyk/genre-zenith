@@ -8706,14 +8706,14 @@ export type Database = {
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "catalog_placements"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_catalog_placement_live"
             referencedColumns: ["id"]
           },
@@ -15230,14 +15230,14 @@ export type Database = {
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "catalog_placements"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_catalog_placement_live"
             referencedColumns: ["id"]
           },
