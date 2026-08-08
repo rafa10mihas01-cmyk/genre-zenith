@@ -265,9 +265,9 @@ export function EnginePriorityTab() {
       .on("postgres_changes", { event: "*", schema: "public", table: "engine_priority_runs" }, () => {
         qc.invalidateQueries({ queryKey: ["engine-diagnostic"] });
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "placement_priority_scores" }, () => {
-        qc.invalidateQueries({ queryKey: ["engine-diagnostic"] });
-      })
+      // placement_priority_scores NAO e assinado: gera ~3,6M eventos/mes no decoder.
+      // engine_priority_runs ja sinaliza o fim de cada recomputo.
+
       .on("postgres_changes", { event: "*", schema: "public", table: "catalog_placements" }, () => {
         qc.invalidateQueries({ queryKey: ["engine-delivery"] });
       })
