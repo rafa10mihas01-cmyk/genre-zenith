@@ -8706,48 +8706,18 @@ export type Database = {
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "catalog_placements"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_catalog_placement_live"
             referencedColumns: ["id"]
           },
         ]
-      }
-      placement_priority_scores_new: {
-        Row: {
-          calculated_at: string
-          components: Json
-          created_at: string
-          id: string
-          placement_id: string
-          run_id: string | null
-          score: number
-        }
-        Insert: {
-          calculated_at?: string
-          components?: Json
-          created_at?: string
-          id?: string
-          placement_id: string
-          run_id?: string | null
-          score?: number
-        }
-        Update: {
-          calculated_at?: string
-          components?: Json
-          created_at?: string
-          id?: string
-          placement_id?: string
-          run_id?: string | null
-          score?: number
-        }
-        Relationships: []
       }
       plan_execution_snapshots: {
         Row: {
@@ -15260,14 +15230,14 @@ export type Database = {
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "catalog_placements"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "placement_priority_scores_placement_id_fkey"
             columns: ["placement_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "v_catalog_placement_live"
             referencedColumns: ["id"]
           },
