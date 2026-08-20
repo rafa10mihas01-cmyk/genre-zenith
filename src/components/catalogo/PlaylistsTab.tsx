@@ -229,6 +229,37 @@ export function PlaylistsTab() {
         </div>
       </div>
 
+      {/* Cópia de links — sempre respeita a lista carregada */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-full text-xs"
+          onClick={() =>
+            copyLinks(
+              rows.filter((r) => r.delivery_7d > 0 && r.spotify_playlist_id).map((r) => playlistUrl(r.spotify_playlist_id!)),
+              "Links das playlists entregando",
+            )
+          }
+        >
+          <Copy className="h-3 w-3 mr-1.5" /> Copiar entregando ({totals.withDelivery})
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-full text-xs"
+          onClick={() =>
+            copyLinks(
+              rows.filter((r) => r.spotify_playlist_id).map((r) => playlistUrl(r.spotify_playlist_id!)),
+              "Links de todas as playlists",
+            )
+          }
+        >
+          <Copy className="h-3 w-3 mr-1.5" /> Copiar todas ({rows.length})
+        </Button>
+      </div>
+
+
       {/* Mobile: cards ordenados por delivery */}
       <div className="md:hidden border border-border rounded-2xl overflow-y-auto bg-card divide-y divide-border max-h-[60vh]">
         {pageRows.map((r) => {
