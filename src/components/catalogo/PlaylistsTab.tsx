@@ -119,7 +119,9 @@ async function fetchAll(): Promise<Row[]> {
     const g = sp ? aggBySp.get(sp) : undefined;
     return {
       managed_playlist_id: o.managed_playlist_id,
+      spotify_playlist_id: sp ?? null,
       playlist_name: o.playlist_name ?? "—",
+
       catalog_capacity: o.catalog_capacity ?? 0,
       active_placements: o.active_placements ?? 0,
       available_slots: o.available_slots ?? 0,
