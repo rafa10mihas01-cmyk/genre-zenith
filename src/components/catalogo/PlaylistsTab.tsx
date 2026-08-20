@@ -351,11 +351,35 @@ export function PlaylistsTab() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold leading-tight line-clamp-2 text-foreground" title={r.playlist_name}>
-                    {r.playlist_name}
-                  </div>
+                  {r.spotify_playlist_id ? (
+                    <a
+                      href={playlistUrl(r.spotify_playlist_id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-semibold leading-tight line-clamp-2 text-foreground hover:text-primary transition-colors"
+                      title={r.playlist_name}
+                    >
+                      {r.playlist_name}
+                    </a>
+                  ) : (
+                    <div className="text-sm font-semibold leading-tight line-clamp-2 text-foreground" title={r.playlist_name}>
+                      {r.playlist_name}
+                    </div>
+                  )}
                 </div>
+                {r.spotify_playlist_id && (
+                  <button
+                    type="button"
+                    aria-label="Copiar link da playlist"
+                    title="Copiar link"
+                    onClick={() => copyLink(playlistUrl(r.spotify_playlist_id!))}
+                    className="h-6 w-6 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center justify-center shrink-0 transition-colors"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                )}
               </div>
+
 
               {/* Métricas principais — grid de 3 blocos legíveis */}
               <div className="grid grid-cols-3 gap-[1px] bg-border/60 border border-border/60 rounded-md overflow-hidden">
