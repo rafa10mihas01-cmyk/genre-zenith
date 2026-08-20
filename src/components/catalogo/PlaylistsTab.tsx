@@ -45,7 +45,9 @@ type Attribution = {
 
 type Row = {
   managed_playlist_id: string;
+  spotify_playlist_id: string | null;
   playlist_name: string;
+
   catalog_capacity: number;
   active_placements: number;
   available_slots: number;
