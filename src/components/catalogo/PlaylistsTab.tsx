@@ -7,13 +7,15 @@
 // Ocupação fica como informação secundária (drill-down visual).
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ListMusic, TrendingUp, Layers } from "lucide-react";
+import { ListMusic, TrendingUp, Layers, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { copyLink, copyLinks, playlistUrl } from "@/lib/copyLinks";
 
 
 import { cn } from "@/lib/utils";
+
 
 type Occupancy = {
   managed_playlist_id: string;
@@ -43,7 +45,9 @@ type Attribution = {
 
 type Row = {
   managed_playlist_id: string;
+  spotify_playlist_id: string | null;
   playlist_name: string;
+
   catalog_capacity: number;
   active_placements: number;
   available_slots: number;
@@ -115,7 +119,9 @@ async function fetchAll(): Promise<Row[]> {
     const g = sp ? aggBySp.get(sp) : undefined;
     return {
       managed_playlist_id: o.managed_playlist_id,
+      spotify_playlist_id: sp ?? null,
       playlist_name: o.playlist_name ?? "—",
+
       catalog_capacity: o.catalog_capacity ?? 0,
       active_placements: o.active_placements ?? 0,
       available_slots: o.available_slots ?? 0,
@@ -223,6 +229,37 @@ export function PlaylistsTab() {
         </div>
       </div>
 
+      {/* Cópia de links — sempre respeita a lista carregada */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-full text-xs"
+          onClick={() =>
+            copyLinks(
+              rows.filter((r) => r.delivery_7d > 0 && r.spotify_playlist_id).map((r) => playlistUrl(r.spotify_playlist_id!)),
+              "Links das playlists entregando",
+            )
+          }
+        >
+          <Copy className="h-3 w-3 mr-1.5" /> Copiar entregando ({totals.withDelivery})
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-full text-xs"
+          onClick={() =>
+            copyLinks(
+              rows.filter((r) => r.spotify_playlist_id).map((r) => playlistUrl(r.spotify_playlist_id!)),
+              "Links de todas as playlists",
+            )
+          }
+        >
+          <Copy className="h-3 w-3 mr-1.5" /> Copiar todas ({rows.length})
+        </Button>
+      </div>
+
+
       {/* Mobile: cards ordenados por delivery */}
       <div className="md:hidden border border-border rounded-2xl overflow-y-auto bg-card divide-y divide-border max-h-[60vh]">
         {pageRows.map((r) => {
@@ -234,7 +271,32 @@ export function PlaylistsTab() {
             <div key={r.managed_playlist_id} className="p-3 flex items-center gap-3 min-w-0">
               <Cover url={r.cover_url} alt={r.playlist_name} />
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm truncate">{r.playlist_name}</div>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {r.spotify_playlist_id ? (
+                    <a
+                      href={playlistUrl(r.spotify_playlist_id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-sm truncate hover:text-primary transition-colors"
+                    >
+                      {r.playlist_name}
+                    </a>
+                  ) : (
+                    <span className="font-medium text-sm truncate">{r.playlist_name}</span>
+                  )}
+                  {r.spotify_playlist_id && (
+                    <button
+                      type="button"
+                      aria-label="Copiar link da playlist"
+                      title="Copiar link"
+                      onClick={() => copyLink(playlistUrl(r.spotify_playlist_id!))}
+                      className="h-6 w-6 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center justify-center shrink-0 transition-colors"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
                 <div className="mt-1 flex items-center gap-2 text-[11px] tabular-nums">
                   <span className={cn("font-semibold", hasDelivery ? "text-[#1DB954]" : "text-muted-foreground/50")}>
                     {fmt(r.delivery_7d)} plays/7d
@@ -289,11 +351,35 @@ export function PlaylistsTab() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold leading-tight line-clamp-2 text-foreground" title={r.playlist_name}>
-                    {r.playlist_name}
-                  </div>
+                  {r.spotify_playlist_id ? (
+                    <a
+                      href={playlistUrl(r.spotify_playlist_id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-semibold leading-tight line-clamp-2 text-foreground hover:text-primary transition-colors"
+                      title={r.playlist_name}
+                    >
+                      {r.playlist_name}
+                    </a>
+                  ) : (
+                    <div className="text-sm font-semibold leading-tight line-clamp-2 text-foreground" title={r.playlist_name}>
+                      {r.playlist_name}
+                    </div>
+                  )}
                 </div>
+                {r.spotify_playlist_id && (
+                  <button
+                    type="button"
+                    aria-label="Copiar link da playlist"
+                    title="Copiar link"
+                    onClick={() => copyLink(playlistUrl(r.spotify_playlist_id!))}
+                    className="h-6 w-6 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center justify-center shrink-0 transition-colors"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                )}
               </div>
+
 
               {/* Métricas principais — grid de 3 blocos legíveis */}
               <div className="grid grid-cols-3 gap-[1px] bg-border/60 border border-border/60 rounded-md overflow-hidden">

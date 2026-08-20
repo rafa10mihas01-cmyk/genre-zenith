@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown, Target, TrendingUp, TrendingDown } from "lucide-react";
+import { Music2, CheckCircle2, AlertTriangle, Clock, ChevronRight, ArrowUpDown, Target, TrendingUp, TrendingDown, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { StatusDot, type StatusVariant } from "@/components/ui/status-dot";
 import { cn } from "@/lib/utils";
 import { AddCatalogTrackDialog } from "./AddCatalogTrackDialog";
+import { copyLink, copyLinks, trackUrl } from "@/lib/copyLinks";
 
 type CatalogTrack = {
   id: string;
@@ -224,6 +225,15 @@ export function MusicasTab() {
             </Button>
           ))}
         </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 rounded-full text-xs px-3 shrink-0"
+          title="Copiar links das músicas listadas"
+          onClick={() => copyLinks(rows.filter((r) => r.spotify_track_id).map((r) => trackUrl(r.spotify_track_id)), "Links das músicas")}
+        >
+          <Copy className="h-3 w-3 mr-1.5" /> Copiar links ({rows.length})
+        </Button>
         <Select value={sort} onValueChange={(v) => setSort(v as SortId)}>
           <SelectTrigger className="h-7 rounded-full text-xs px-3 w-auto gap-1.5 shrink-0">
             <ArrowUpDown className="h-3 w-3" />
@@ -304,6 +314,15 @@ export function MusicasTab() {
                       </div>
                     </div>
                     <StatusDot variant={status.variant} label={status.label} className="shrink-0" />
+                    <button
+                      type="button"
+                      title="Copiar link da música"
+                      onClick={(e) => { e.stopPropagation(); copyLink(trackUrl(t.spotify_track_id)); }}
+                      className="h-7 w-7 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center justify-center shrink-0 transition-colors"
+                      aria-label="Copiar link"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       type="button"
                       title="Criar campanha com essa música"
