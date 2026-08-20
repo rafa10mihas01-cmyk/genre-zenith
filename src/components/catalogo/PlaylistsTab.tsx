@@ -271,7 +271,32 @@ export function PlaylistsTab() {
             <div key={r.managed_playlist_id} className="p-3 flex items-center gap-3 min-w-0">
               <Cover url={r.cover_url} alt={r.playlist_name} />
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm truncate">{r.playlist_name}</div>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {r.spotify_playlist_id ? (
+                    <a
+                      href={playlistUrl(r.spotify_playlist_id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-sm truncate hover:text-primary transition-colors"
+                    >
+                      {r.playlist_name}
+                    </a>
+                  ) : (
+                    <span className="font-medium text-sm truncate">{r.playlist_name}</span>
+                  )}
+                  {r.spotify_playlist_id && (
+                    <button
+                      type="button"
+                      aria-label="Copiar link da playlist"
+                      title="Copiar link"
+                      onClick={() => copyLink(playlistUrl(r.spotify_playlist_id!))}
+                      className="h-6 w-6 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 flex items-center justify-center shrink-0 transition-colors"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
                 <div className="mt-1 flex items-center gap-2 text-[11px] tabular-nums">
                   <span className={cn("font-semibold", hasDelivery ? "text-[#1DB954]" : "text-muted-foreground/50")}>
                     {fmt(r.delivery_7d)} plays/7d
