@@ -7,13 +7,15 @@
 // Ocupação fica como informação secundária (drill-down visual).
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ListMusic, TrendingUp, Layers } from "lucide-react";
+import { ListMusic, TrendingUp, Layers, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { copyLink, copyLinks, playlistUrl } from "@/lib/copyLinks";
 
 
 import { cn } from "@/lib/utils";
+
 
 type Occupancy = {
   managed_playlist_id: string;
