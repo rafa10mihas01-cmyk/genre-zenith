@@ -1,0 +1,1 @@
+SELECT public.cleanup_old_logs_and_snapshots();
