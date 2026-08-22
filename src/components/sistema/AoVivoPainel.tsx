@@ -92,16 +92,24 @@ export function AoVivoPainel() {
 
   useEffect(() => {
     load();
+    // Onda 7 (custo): cada evento de realtime disparava 7 queries. Rajadas de dispatch
+    // geravam milhares de leituras por minuto — agora são agrupadas em 1 recarga/2s.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleLoad = () => {
+      if (timer) return;
+      timer = setTimeout(() => { timer = null; load(); }, 2_000);
+    };
     const ch = supabase
       .channel("aovivo-atual")
-      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, () => load())
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_execution_jobs" }, scheduleLoad)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bot_heartbeats" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "search_results" }, scheduleLoad)
       .subscribe();
     // Polling de fallback raro — realtime cobre o tempo real
     const t = setInterval(load, 60_000);
-    return () => { supabase.removeChannel(ch); clearInterval(t); };
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(ch); clearInterval(t); };
   }, []);
+
 
   if (loading || !state) {
     return (
