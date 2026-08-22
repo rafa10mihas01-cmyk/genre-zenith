@@ -99,8 +99,10 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [busyManualId, setBusyManualId] = useState<string | null>(null);
 
+  // Onda 7 (custo): jobs/manual recarregam em realtime; as alocações do ecossistema
+  // são estáveis por campanha e passam a ser lidas UMA vez por campaignId.
   const load = async () => {
-    const [jobsRes, manualRes, ecoRes] = await Promise.all([
+    const [jobsRes, manualRes] = await Promise.all([
       supabase
         .from("playlist_execution_jobs")
         .select("id, job_type, status, spotify_playlist_id, spotify_track_id, attempts, max_attempts, scheduled_for, claimed_at, completed_at, last_error, from_position, to_position, created_at")
@@ -115,36 +117,51 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
         .in("status", ["MANUAL_PENDING", "AUTO_FAILED_FALLBACK_MANUAL", "MANUAL_DONE"])
         .order("created_at", { ascending: false })
         .limit(500),
-      supabase
-        .from("campaign_eco_allocations")
-        .select("managed_playlist_id, position, managed_playlists(name, spotify_playlist_id, execution_mode)")
-        .eq("campaign_id", campaignId),
     ]);
     setJobs((jobsRes.data ?? []) as JobRow[]);
     setManualItems((manualRes.data ?? []) as ManualRow[]);
-    const map = new Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>();
-    for (const r of (ecoRes.data ?? []) as unknown as EcoRow[]) {
-      const spid = r.managed_playlists?.spotify_playlist_id;
-      if (spid) map.set(spid, {
-        name: r.managed_playlists?.name ?? spid,
-        position: r.position,
-        executionMode: (r.managed_playlists?.execution_mode ?? null) as PlaylistExecutionMode,
-      });
-    }
-    setEcoMap(map);
     setLoading(false);
   };
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const ecoRes = await supabase
+        .from("campaign_eco_allocations")
+        .select("managed_playlist_id, position, managed_playlists(name, spotify_playlist_id, execution_mode)")
+        .eq("campaign_id", campaignId);
+      if (cancelled) return;
+      const map = new Map<string, { name: string; position: number | null; executionMode: PlaylistExecutionMode }>();
+      for (const r of (ecoRes.data ?? []) as unknown as EcoRow[]) {
+        const spid = r.managed_playlists?.spotify_playlist_id;
+        if (spid) map.set(spid, {
+          name: r.managed_playlists?.name ?? spid,
+          position: r.position,
+          executionMode: (r.managed_playlists?.execution_mode ?? null) as PlaylistExecutionMode,
+        });
+      }
+      setEcoMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, [campaignId]);
+
+  useEffect(() => {
     setLoading(true);
     load();
+    // Debounce de rajadas do realtime: durante um dispatch chegam dezenas de eventos
+    // por segundo — sem isso cada evento virava um par de queries.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleLoad = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { timer = null; load(); }, 800);
+    };
     const channelKey = Math.random().toString(36).slice(2);
     const jobsChannel = supabase
       .channel(`camp-exec-jobs-${campaignId}-${channelKey}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "playlist_execution_jobs", filter: `campaign_id=eq.${campaignId}` },
-        () => load(),
+        scheduleLoad,
       )
       .subscribe();
     const manualChannel = supabase
@@ -152,15 +169,17 @@ export function CampaignExecutionStatus({ campaignId }: Props) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "manual_distribution_queue", filter: `campaign_id=eq.${campaignId}` },
-        () => load(),
+        scheduleLoad,
       )
       .subscribe();
     return () => {
+      if (timer) clearTimeout(timer);
       supabase.removeChannel(jobsChannel);
       supabase.removeChannel(manualChannel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaignId]);
+
 
   const grouped = useMemo(() => {
     const m = new Map<string, { jobs: JobRow[]; manual: ManualRow[] }>();
