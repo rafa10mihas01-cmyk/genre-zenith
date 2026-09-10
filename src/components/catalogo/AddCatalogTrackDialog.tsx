@@ -210,25 +210,29 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const [plQuery, setPlQuery] = useState("");
   const [plLoading, setPlLoading] = useState(false);
   const [plHits, setPlHits] = useState<PlaylistHit[]>([]);
-  const [plSelected, setPlSelected] = useState<PlaylistHit | null>(null);
+  const [plSelected, setPlSelected] = useState<PlaylistHit[]>([]);
   const [plSending, setPlSending] = useState(false);
   const [plSentIds, setPlSentIds] = useState<string[]>([]);
+
+  const togglePlaylist = (h: PlaylistHit) =>
+    setPlSelected((prev) =>
+      prev.some((p) => p.id === h.id) ? prev.filter((p) => p.id !== h.id) : [...prev, h],
+    );
 
   useEffect(() => {
     if (step !== "preview") return;
     const q = plQuery.trim();
-    if (q.length < 2) { setPlHits([]); return; }
     let cancelled = false;
     setPlLoading(true);
     const timer = setTimeout(async () => {
-      const { data } = await supabase
+      let query = supabase
         .from("managed_playlists")
         .select("id, name, spotify_playlist_id, followers, genre_id")
         .eq("execution_mode", "API_READY")
-        .or("operational_status.is.null,operational_status.neq.do_not_operate")
-        .ilike("name", `%${q}%`)
-        .order("followers", { ascending: false })
-        .limit(20);
+        .or("operational_status.is.null,operational_status.neq.do_not_operate");
+      if (q.length >= 2) query = query.ilike("name", `%${q}%`);
+      else if (selectedGenreId) query = query.eq("genre_id", selectedGenreId);
+      const { data } = await query.order("followers", { ascending: false }).limit(q.length >= 2 ? 30 : 50);
       if (cancelled) return;
       const hits = (data ?? []) as PlaylistHit[];
       const trackSpotifyId = resolved?.track?.spotify_track_id;
@@ -251,44 +255,52 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
       if (!cancelled) { setPlHits(hits); setPlLoading(false); }
     }, 350);
     return () => { cancelled = true; clearTimeout(timer); setPlLoading(false); };
-  }, [plQuery, step, resolved?.track?.spotify_track_id]);
+  }, [plQuery, step, resolved?.track?.spotify_track_id, selectedGenreId]);
 
   const doPlaceOnPlaylist = async () => {
-    if (!plSelected || !resolved?.track?.spotify_track_id) return;
+    if (plSelected.length === 0 || !resolved?.track?.spotify_track_id) return;
     setPlSending(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("place-catalog-track-on-playlist", {
-        body: {
-          spotify_track_id: resolved.track.spotify_track_id,
-          managed_playlist_id: plSelected.id,
-          allow_duplicate: true,
-        },
-      });
-      if (error) throw new Error(error.message);
-      const r = data as { ok: boolean; error?: string; message?: string; copy_index?: number };
-      if (!r?.ok) {
-        const map: Record<string, string> = {
-          track_not_in_catalog: "Cadastre a música no catálogo primeiro (botão de distribuir).",
-          playlist_not_operable: "Essa playlist não está operável (sem autorização ou marcada para não operar).",
-          max_copies_reached: "Essa playlist já tem as 2 cópias permitidas dessa música.",
-          placement_conflict: "Já existe um envio pendente igual para essa playlist.",
-        };
-        throw new Error(map[r?.error ?? ""] ?? r?.message ?? r?.error ?? "Falha no envio");
+    const okIds: string[] = [];
+    const fails: string[] = [];
+    const map: Record<string, string> = {
+      track_not_in_catalog: "Cadastre a música no catálogo primeiro (botão de distribuir).",
+      playlist_not_operable: "playlist não operável",
+      max_copies_reached: "já tem as 2 cópias permitidas",
+      placement_conflict: "já existe envio pendente",
+    };
+    for (const pl of plSelected) {
+      try {
+        const { data, error } = await supabase.functions.invoke("place-catalog-track-on-playlist", {
+          body: {
+            spotify_track_id: resolved.track.spotify_track_id,
+            managed_playlist_id: pl.id,
+            allow_duplicate: true,
+          },
+        });
+        if (error) throw new Error(error.message);
+        const r = data as { ok: boolean; error?: string; message?: string };
+        if (!r?.ok) throw new Error(map[r?.error ?? ""] ?? r?.message ?? r?.error ?? "falha");
+        okIds.push(pl.id);
+      } catch (e) {
+        fails.push(`${pl.name}: ${(e as Error)?.message ?? "falha"}`);
       }
-      setPlSentIds((prev) => [...prev, plSelected.id]);
+    }
+    setPlSentIds((prev) => [...prev, ...okIds]);
+    setPlSelected([]);
+    setPlSending(false);
+    if (okIds.length > 0) {
       toast.success(
-        (r.copy_index ?? 1) > 1
-          ? `Segunda cópia agendada em "${plSelected.name}"`
-          : `Música agendada em "${plSelected.name}"`,
+        okIds.length === 1 ? "Música agendada em 1 playlist" : `Música agendada em ${okIds.length} playlists`,
       );
-      setPlSelected(null);
       onDistributed?.();
-    } catch (e) {
-      toast.error((e as Error)?.message ?? "Falha no envio");
-    } finally {
-      setPlSending(false);
+    }
+    if (fails.length > 0) {
+      toast.error(`${fails.length} não ${fails.length === 1 ? "entrou" : "entraram"}`, {
+        description: fails.slice(0, 4).join(" · "),
+      });
     }
   };
+
 
   // —————————————————————————————————————————————————————————
   // Render auxiliares
