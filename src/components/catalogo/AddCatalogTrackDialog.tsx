@@ -974,6 +974,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   // —————————————————————————————————————————————————————————
 
   const title =
+    step === "batch" ? "Cadastrar em lote" :
     step === "preview" || step === "previewing" || step === "distributing" ? "Confirmar distribuição" :
     step === "done" ? "Distribuição concluída" :
     step === "error" ? "Erro" :
@@ -981,12 +982,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const description =
     step === "idle" || step === "resolving"
-      ? "Cole a URL do Spotify para buscar a faixa."
-      : step === "metadata"
-        ? "Confirme o gênero antes do preview."
-        : step === "preview" || step === "previewing" || step === "distributing"
-          ? "Revise o impacto antes de criar os placements."
-          : undefined;
+      ? "Cole uma ou várias URLs do Spotify (até 20)."
+      : step === "batch"
+        ? "As músicas entram uma por vez, devagar, para não sobrecarregar o Spotify."
+        : step === "metadata"
+          ? "Confirme o gênero antes do preview."
+          : step === "preview" || step === "previewing" || step === "distributing"
+            ? "Revise o impacto antes de criar os placements."
+            : undefined;
 
 
   const isBusy = step === "resolving" || step === "previewing" || step === "distributing";
