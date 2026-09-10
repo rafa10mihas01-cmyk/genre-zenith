@@ -13,8 +13,51 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 
-type Step = "idle" | "resolving" | "metadata" | "previewing" | "preview" | "distributing" | "done" | "error";
+type Step =
+  | "idle" | "resolving" | "metadata" | "previewing" | "preview" | "distributing" | "done" | "error"
+  | "batch";
+
+const BATCH_MAX = 20;
+const BATCH_DELAY_MS = 1200;
+
+type BatchStatus = "pending" | "resolving" | "ready" | "sending" | "done" | "error";
+
+type BatchItem = {
+  key: string;
+  raw: string;
+  status: BatchStatus;
+  trackId?: string;
+  trackName?: string;
+  artistName?: string;
+  coverUrl?: string | null;
+  genreId?: string;
+  existing?: boolean;
+  error?: string;
+  resultMsg?: string;
+};
+
+/** Quebra a entrada em links/IDs únicos (máx. BATCH_MAX). */
+function parseInputs(value: string): string[] {
+  const parts = value
+    .split(/[\s,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of parts) {
+    const k = p.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p);
+    if (out.length >= BATCH_MAX) break;
+  }
+  return out;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Genre = { id: string; nome: string; slug: string };
 
