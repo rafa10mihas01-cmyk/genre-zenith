@@ -275,6 +275,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             spotify_track_id: resolved.track.spotify_track_id,
             managed_playlist_id: pl.id,
             allow_duplicate: true,
+            genre_id: selectedGenreId || null,
+            track_meta: {
+              track_name: resolved.track.track_name,
+              artist_name: resolved.track.artist_name,
+              spotify_uri: resolved.track.spotify_uri,
+              isrc: resolved.track.isrc,
+              cover_url: resolved.track.cover_url,
+            },
           },
         });
         if (error) throw new Error(error.message);
