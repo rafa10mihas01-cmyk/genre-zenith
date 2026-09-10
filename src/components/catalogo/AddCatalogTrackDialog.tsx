@@ -535,25 +535,174 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
   };
 
-  const renderStepIdleOrResolving = () => (
-    <div className="space-y-2">
-      <Label htmlFor="track-input" className="text-[12px]">Spotify URL, URI ou ID (faixa ou álbum)</Label>
-      <Input
-        id="track-input"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="https://open.spotify.com/track/... ou /album/..."
+  const renderStepIdleOrResolving = () => {
+    const count = parseInputs(input).length;
+    return (
+      <div className="space-y-2">
+        <Label htmlFor="track-input" className="text-[12px]">
+          Spotify URL, URI ou ID (faixa ou álbum) — até {BATCH_MAX} de uma vez
+        </Label>
+        <Textarea
+          id="track-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={"https://open.spotify.com/track/...\nCole vários links, um por linha"}
+          rows={4}
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          disabled={step === "resolving"}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && step === "idle" && parseInputs(input).length === 1) {
+              e.preventDefault();
+              doResolve();
+            }
+          }}
+        />
+        <div className="text-[11px] text-muted-foreground">
+          {count > 1
+            ? `${count} link${count === 1 ? "" : "s"} detectado${count === 1 ? "" : "s"} — vai abrir o modo lote (fila, uma música por vez).`
+            : "Um link por linha. Com 2 ou mais, o cadastro entra em modo lote."}
+        </div>
+      </div>
+    );
+  };
 
-        autoFocus
-        autoComplete="off"
-        spellCheck={false}
-        disabled={step === "resolving"}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && step === "idle" && input.trim()) doResolve();
-        }}
-      />
-    </div>
-  );
+  const renderStepBatch = () => {
+    const total = batchItems.length;
+    const resolving = batchItems.some((it) => it.status === "resolving" || it.status === "pending");
+    const doneCount = batchItems.filter((it) => it.status === "done").length;
+    const errorCount = batchItems.filter((it) => it.status === "error").length;
+    const readyCount = batchItems.filter((it) => it.status === "ready").length;
+    const missingGenre = batchItems.filter((it) => it.status === "ready" && !it.genreId).length;
+    const processed = doneCount + errorCount;
+
+    return (
+      <div className="space-y-3 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[12px] font-medium flex items-center gap-1.5">
+            <ListPlus className="h-3.5 w-3.5" /> Lote de {total} música{total === 1 ? "" : "s"}
+          </div>
+          <div className="text-[11px] text-muted-foreground tabular-nums">
+            {resolving ? "Identificando…" : `${doneCount} ok · ${errorCount} erro · ${readyCount} na fila`}
+          </div>
+        </div>
+
+        {(batchRunning || batchDone) && (
+          <Progress value={total ? (processed / total) * 100 : 0} className="h-1.5" />
+        )}
+
+        <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1 -mr-1">
+          {batchItems.map((it) => (
+            <div key={it.key} className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2 min-w-0">
+              {it.coverUrl ? (
+                <img src={it.coverUrl} alt={it.trackName ?? ""} className="h-8 w-8 rounded shrink-0 object-cover ring-1 ring-border" />
+              ) : (
+                <div className="h-8 w-8 rounded shrink-0 bg-muted flex items-center justify-center">
+                  {it.status === "resolving" || it.status === "sending"
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    : <Music className="h-3.5 w-3.5 text-muted-foreground" />}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-medium truncate">
+                  {it.trackName ?? it.raw}
+                </div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  {it.status === "error"
+                    ? <span className="text-destructive">{it.error}</span>
+                    : it.status === "done"
+                      ? <span className="text-primary">{it.resultMsg ?? "concluído"}</span>
+                      : it.artistName ?? "identificando…"}
+                </div>
+              </div>
+
+              {it.status === "ready" || it.status === "error" || it.status === "done" ? (
+                <div className="w-36 shrink-0">
+                  <Select
+                    value={it.genreId ?? ""}
+                    onValueChange={(v) => patchItem(it.key, { genreId: v })}
+                    disabled={batchRunning}
+                  >
+                    <SelectTrigger className="h-8 text-[11px]">
+                      <SelectValue placeholder="Gênero" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {genres.map((g) => (
+                        <SelectItem key={g.id} value={g.id} className="capitalize text-[12px]">{g.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
+              {it.status === "done" && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+              {it.existing && it.status !== "done" && (
+                <Badge variant="outline" className="text-[9px] h-4 px-1.5 shrink-0 border-amber-500/40 text-amber-500">já existe</Badge>
+              )}
+              {!batchRunning && (
+                <button
+                  type="button"
+                  onClick={() => removeBatchItem(it.key)}
+                  className="p-1 rounded hover:bg-muted shrink-0"
+                  aria-label="Remover do lote"
+                >
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {!resolving && (
+          <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-[11px] shrink-0">Aplicar gênero a todas</Label>
+              <Select value="" onValueChange={applyGenreToAll} disabled={batchRunning}>
+                <SelectTrigger className="h-8 text-[11px] w-44"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                <SelectContent>
+                  {genres.map((g) => (
+                    <SelectItem key={g.id} value={g.id} className="capitalize text-[12px]">{g.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={batchTarget === "genre" ? "default" : "outline"}
+                onClick={() => setBatchTarget("genre")}
+                disabled={batchRunning}
+                className="flex-1 text-[11px]"
+              >
+                Distribuir no gênero
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={batchTarget === "playlists" ? "default" : "outline"}
+                onClick={() => setBatchTarget("playlists")}
+                disabled={batchRunning}
+                className="flex-1 text-[11px]"
+              >
+                Só playlists escolhidas
+              </Button>
+            </div>
+
+            {batchTarget === "playlists" && renderTargetedSend(true)}
+
+            {missingGenre > 0 && (
+              <div className="text-[11px] text-amber-500">
+                {missingGenre} música{missingGenre === 1 ? "" : "s"} sem gênero — escolha antes de iniciar.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
 
   const renderStepMetadata = () => {
