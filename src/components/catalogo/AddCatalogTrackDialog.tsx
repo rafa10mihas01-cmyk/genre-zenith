@@ -186,6 +186,11 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const doResolve = async () => {
     const value = input.trim();
     if (!value) return;
+    const tokens = parseInputs(value);
+    if (tokens.length > 1) {
+      void startBatch(tokens);
+      return;
+    }
     setStep("resolving");
     setErrorMsg(null);
     try {
