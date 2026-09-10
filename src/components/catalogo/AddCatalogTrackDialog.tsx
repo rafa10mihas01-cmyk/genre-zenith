@@ -317,7 +317,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
       if (!cancelled) { setPlHits(hits); setPlLoading(false); }
     }, 350);
     return () => { cancelled = true; clearTimeout(timer); setPlLoading(false); };
-  }, [plQuery, step, resolved?.track?.spotify_track_id, selectedGenreId]);
+  }, [plQuery, step, resolved?.track?.spotify_track_id, selectedGenreId, batchTarget]);
 
   const doPlaceOnPlaylist = async () => {
     if (plSelected.length === 0 || !resolved?.track?.spotify_track_id) return;
