@@ -39,22 +39,42 @@ type BatchItem = {
   resultMsg?: string;
 };
 
-/** Quebra a entrada em links/IDs únicos (máx. BATCH_MAX). */
-function parseInputs(value: string): string[] {
-  const parts = value
-    .split(/[\s,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+/**
+ * Extrai apenas links/URIs/IDs válidos do Spotify (track ou album) de um texto
+ * colado, ignorando numeração, nomes de música e qualquer outro ruído.
+ * Deduplica pelo ID e respeita BATCH_MAX.
+ */
+function parseAllInputs(value: string): { items: string[]; overflow: number } {
   const seen = new Set<string>();
-  const out: string[] = [];
-  for (const p of parts) {
-    const k = p.toLowerCase();
-    if (seen.has(k)) continue;
+  const all: string[] = [];
+
+  const push = (id: string, original: string) => {
+    const k = id.toLowerCase();
+    if (seen.has(k)) return;
     seen.add(k);
-    out.push(p);
-    if (out.length >= BATCH_MAX) break;
+    all.push(original);
+  };
+
+  // 1) URLs (open.spotify.com/track|album/<id>, com ou sem /intl-xx/)
+  const urlRe = /https?:\/\/[^\s,;]*open\.spotify\.com\/(?:[a-z-]+\/)?(track|album)\/([A-Za-z0-9]{22})[^\s,;]*/gi;
+  for (const m of value.matchAll(urlRe)) push(m[2], m[0]);
+
+  // 2) URIs spotify:track:<id> / spotify:album:<id>
+  const uriRe = /spotify:(track|album):([A-Za-z0-9]{22})/gi;
+  for (const m of value.matchAll(uriRe)) push(m[2], m[0]);
+
+  // 3) IDs soltos (22 chars) — só se estiverem isolados como token
+  for (const tok of value.split(/[\s,;]+/)) {
+    const t = tok.trim();
+    if (/^[A-Za-z0-9]{22}$/.test(t)) push(t, t);
   }
-  return out;
+
+  return { items: all.slice(0, BATCH_MAX), overflow: Math.max(0, all.length - BATCH_MAX) };
+}
+
+/** Compat: lista de entradas válidas (máx. BATCH_MAX). */
+function parseInputs(value: string): string[] {
+  return parseAllInputs(value).items;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -184,13 +204,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   );
 
   const doResolve = async () => {
-    const value = input.trim();
-    if (!value) return;
-    const tokens = parseInputs(value);
+    const raw = input.trim();
+    if (!raw) return;
+    const tokens = parseInputs(raw);
     if (tokens.length > 1) {
       void startBatch(tokens);
       return;
     }
+    const value = tokens[0] ?? raw;
     setStep("resolving");
     setErrorMsg(null);
     try {
@@ -536,7 +557,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   };
 
   const renderStepIdleOrResolving = () => {
-    const count = parseInputs(input).length;
+    const parsedAll = parseAllInputs(input);
+    const count = parsedAll.items.length;
     return (
       <div className="space-y-2">
         <Label htmlFor="track-input" className="text-[12px]">
@@ -561,9 +583,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         />
         <div className="text-[11px] text-muted-foreground">
           {count > 1
-            ? `${count} link${count === 1 ? "" : "s"} detectado${count === 1 ? "" : "s"} — vai abrir o modo lote (fila, uma música por vez).`
-            : "Um link por linha. Com 2 ou mais, o cadastro entra em modo lote."}
+            ? `${count} músicas reconhecidas — vai abrir o modo lote (fila, uma por vez).`
+            : "Pode colar a lista inteira com números e nomes junto: só os links do Spotify são aproveitados."}
         </div>
+        {parsedAll.overflow > 0 && (
+          <div className="text-[11px] text-amber-500">
+            Você colou {count + parsedAll.overflow} links. Só os {BATCH_MAX} primeiros entram agora — os outros {parsedAll.overflow} ficam para a próxima leva.
+          </div>
+        )}
       </div>
     );
   };
