@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw, Search, Copy } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw, Search, Copy, X, ListPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
