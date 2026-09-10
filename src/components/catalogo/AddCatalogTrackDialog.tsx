@@ -273,7 +273,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
 
   useEffect(() => {
-    if (step !== "preview") return;
+    if (step !== "preview" && !(step === "batch" && batchTarget === "playlists")) return;
     const q = plQuery.trim();
     let cancelled = false;
     setPlLoading(true);
