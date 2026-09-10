@@ -1011,6 +1011,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 ? <div className="py-8 flex items-center justify-center text-sm text-muted-foreground gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando preview…</div>
                 : renderStepPreview()
             )}
+            {step === "batch" && renderStepBatch()}
             {step === "done" && renderStepDone()}
             {step === "error" && renderStepError()}
 
