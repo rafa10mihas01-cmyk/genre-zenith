@@ -429,12 +429,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
   };
 
-  const renderTargetedSend = () => (
+  const renderTargetedSend = () => {
+    const dupCount = plSelected.filter((p) => p.already_present).length;
+    return (
     <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
       <div className="space-y-0.5">
-        <div className="text-[12px] font-medium">Enviar para uma playlist específica</div>
+        <div className="text-[12px] font-medium">Escolher playlists específicas</div>
         <div className="text-[11px] text-muted-foreground">
-          Busque pelo nome. Playlists que já têm a música também aparecem — nelas o envio cria uma segunda entrada proposital.
+          Marque quantas quiser na lista abaixo (ou busque pelo nome). Playlists que já têm a música também aparecem — nelas o envio cria uma segunda entrada proposital.
         </div>
       </div>
 
@@ -442,7 +444,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
         <Input
           value={plQuery}
-          onChange={(e) => { setPlQuery(e.target.value); setPlSelected(null); }}
+          onChange={(e) => setPlQuery(e.target.value)}
           placeholder="Buscar playlist pelo nome…"
           className="pl-8 h-9"
           autoComplete="off"
@@ -450,69 +452,78 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         />
       </div>
 
-      {plQuery.trim().length >= 2 && (
-        <div className="max-h-52 overflow-y-auto space-y-1 pr-1 -mr-1">
-          {plLoading && (
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground py-2">
-              <Loader2 className="h-3 w-3 animate-spin" /> Buscando…
-            </div>
-          )}
-          {!plLoading && plHits.length === 0 && (
-            <div className="text-[11px] text-muted-foreground py-2">Nenhuma playlist operável com esse nome.</div>
-          )}
-          {plHits.map((h) => {
-            const isSel = plSelected?.id === h.id;
-            const sent = plSentIds.includes(h.id);
-            return (
-              <button
-                key={h.id}
-                type="button"
-                onClick={() => setPlSelected(isSel ? null : h)}
-                className={`w-full text-left px-2.5 py-2 rounded-md border transition-colors ${
-                  isSel ? "border-primary/50 bg-primary/5" : "border-border/60 hover:bg-muted/40"
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[12px] font-medium truncate">{h.name}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {fmtNum(h.followers)} seguidores
-                    </div>
-                  </div>
-                  {sent && (
-                    <Badge variant="secondary" className="text-[9px] h-4 px-1.5 shrink-0">enviada</Badge>
-                  )}
-                  {h.already_present && !sent && (
-                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 shrink-0 border-amber-500/40 text-amber-500">
-                      já contém
-                    </Badge>
-                  )}
+      <div className="max-h-52 overflow-y-auto space-y-1 pr-1 -mr-1">
+        {plLoading && (
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground py-2">
+            <Loader2 className="h-3 w-3 animate-spin" /> Buscando…
+          </div>
+        )}
+        {!plLoading && plHits.length === 0 && (
+          <div className="text-[11px] text-muted-foreground py-2">Nenhuma playlist operável encontrada.</div>
+        )}
+        {plHits.map((h) => {
+          const isSel = plSelected.some((p) => p.id === h.id);
+          const sent = plSentIds.includes(h.id);
+          return (
+            <button
+              key={h.id}
+              type="button"
+              onClick={() => togglePlaylist(h)}
+              className={`w-full text-left px-2.5 py-2 rounded-md border transition-colors ${
+                isSel ? "border-primary/50 bg-primary/5" : "border-border/60 hover:bg-muted/40"
+              }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className={`h-3.5 w-3.5 rounded-[4px] border shrink-0 flex items-center justify-center ${
+                    isSel ? "bg-primary border-primary" : "border-border"
+                  }`}
+                >
+                  {isSel && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
                 </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12px] font-medium truncate">{h.name}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {fmtNum(h.followers)} seguidores
+                  </div>
+                </div>
+                {sent && (
+                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5 shrink-0">enviada</Badge>
+                )}
+                {h.already_present && !sent && (
+                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 shrink-0 border-amber-500/40 text-amber-500">
+                    já contém
+                  </Badge>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-      {plSelected && (
+      {plSelected.length > 0 && (
         <div className="space-y-2 pt-1">
-          {plSelected.already_present && (
+          {dupCount > 0 && (
             <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 text-[11px]">
               <Copy className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
               <span>
-                <span className="font-medium">{plSelected.name}</span> já tem essa música.
-                Confirmar vai criar uma <span className="font-medium">segunda entrada</span> na playlist.
+                {dupCount} das selecionadas já {dupCount === 1 ? "tem" : "têm"} essa música. Confirmar cria uma{" "}
+                <span className="font-medium">segunda entrada</span> {dupCount === 1 ? "nela" : "nelas"}.
               </span>
             </div>
           )}
           <Button size="sm" onClick={doPlaceOnPlaylist} disabled={plSending} className="gap-2 w-full">
             {plSending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {plSelected.already_present ? "Confirmar segunda entrada" : "Enviar só para esta playlist"}
+            {plSelected.length === 1
+              ? "Enviar só para esta playlist"
+              : `Enviar para ${plSelected.length} playlists selecionadas`}
           </Button>
         </div>
       )}
     </div>
-  );
+    );
+  };
+
 
   const renderStepPreview = () => {
     if (!preview || !resolved) return null;
