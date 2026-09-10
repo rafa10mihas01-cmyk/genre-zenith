@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw, Search, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -60,6 +61,15 @@ type PreviewResult = {
   already_present_count?: number;
 };
 
+type PlaylistHit = {
+  id: string;
+  name: string;
+  spotify_playlist_id: string | null;
+  followers: number | null;
+  genre_id: string | null;
+  already_present?: boolean;
+};
+
 
 type DistributeResult = {
   ok: boolean;
@@ -109,6 +119,10 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     setSelectedGenreId("");
     setPreview(null);
     setDistributed(null);
+    setPlQuery("");
+    setPlHits([]);
+    setPlSelected(null);
+    setPlSentIds([]);
   };
 
   const handleClose = (next: boolean) => {
@@ -187,6 +201,92 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     } catch (e) {
       setErrorMsg((e as Error)?.message ?? String(e));
       setStep("error");
+    }
+  };
+
+  // ———————————————————————————————————————————————
+  // Envio direcionado a UMA playlist (permite 2ª cópia proposital)
+  // ———————————————————————————————————————————————
+  const [plQuery, setPlQuery] = useState("");
+  const [plLoading, setPlLoading] = useState(false);
+  const [plHits, setPlHits] = useState<PlaylistHit[]>([]);
+  const [plSelected, setPlSelected] = useState<PlaylistHit | null>(null);
+  const [plSending, setPlSending] = useState(false);
+  const [plSentIds, setPlSentIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (step !== "preview") return;
+    const q = plQuery.trim();
+    if (q.length < 2) { setPlHits([]); return; }
+    let cancelled = false;
+    setPlLoading(true);
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from("managed_playlists")
+        .select("id, name, spotify_playlist_id, followers, genre_id")
+        .eq("execution_mode", "API_READY")
+        .or("operational_status.is.null,operational_status.neq.do_not_operate")
+        .ilike("name", `%${q}%`)
+        .order("followers", { ascending: false })
+        .limit(20);
+      if (cancelled) return;
+      const hits = (data ?? []) as PlaylistHit[];
+      const trackSpotifyId = resolved?.track?.spotify_track_id;
+      if (hits.length > 0 && trackSpotifyId) {
+        const ids = hits.map((h) => h.id);
+        const [{ data: mpt }, { data: cps }] = await Promise.all([
+          supabase.from("managed_playlist_tracks")
+            .select("playlist_id").in("playlist_id", ids).eq("spotify_track_id", trackSpotifyId),
+          supabase.from("catalog_placements")
+            .select("managed_playlist_id, catalog_tracks!inner(spotify_track_id)")
+            .in("managed_playlist_id", ids).neq("status", "removed")
+            .eq("catalog_tracks.spotify_track_id", trackSpotifyId),
+        ]);
+        const present = new Set<string>([
+          ...((mpt ?? []) as Array<{ playlist_id: string }>).map((r) => r.playlist_id),
+          ...((cps ?? []) as Array<{ managed_playlist_id: string }>).map((r) => r.managed_playlist_id),
+        ]);
+        for (const h of hits) h.already_present = present.has(h.id);
+      }
+      if (!cancelled) { setPlHits(hits); setPlLoading(false); }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); setPlLoading(false); };
+  }, [plQuery, step, resolved?.track?.spotify_track_id]);
+
+  const doPlaceOnPlaylist = async () => {
+    if (!plSelected || !resolved?.track?.spotify_track_id) return;
+    setPlSending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("place-catalog-track-on-playlist", {
+        body: {
+          spotify_track_id: resolved.track.spotify_track_id,
+          managed_playlist_id: plSelected.id,
+          allow_duplicate: true,
+        },
+      });
+      if (error) throw new Error(error.message);
+      const r = data as { ok: boolean; error?: string; message?: string; copy_index?: number };
+      if (!r?.ok) {
+        const map: Record<string, string> = {
+          track_not_in_catalog: "Cadastre a música no catálogo primeiro (botão de distribuir).",
+          playlist_not_operable: "Essa playlist não está operável (sem autorização ou marcada para não operar).",
+          max_copies_reached: "Essa playlist já tem as 2 cópias permitidas dessa música.",
+          placement_conflict: "Já existe um envio pendente igual para essa playlist.",
+        };
+        throw new Error(map[r?.error ?? ""] ?? r?.message ?? r?.error ?? "Falha no envio");
+      }
+      setPlSentIds((prev) => [...prev, plSelected.id]);
+      toast.success(
+        (r.copy_index ?? 1) > 1
+          ? `Segunda cópia agendada em "${plSelected.name}"`
+          : `Música agendada em "${plSelected.name}"`,
+      );
+      setPlSelected(null);
+      onDistributed?.();
+    } catch (e) {
+      toast.error((e as Error)?.message ?? "Falha no envio");
+    } finally {
+      setPlSending(false);
     }
   };
 
@@ -317,6 +417,91 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
   };
 
+  const renderTargetedSend = () => (
+    <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
+      <div className="space-y-0.5">
+        <div className="text-[12px] font-medium">Enviar para uma playlist específica</div>
+        <div className="text-[11px] text-muted-foreground">
+          Busque pelo nome. Playlists que já têm a música também aparecem — nelas o envio cria uma segunda entrada proposital.
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          value={plQuery}
+          onChange={(e) => { setPlQuery(e.target.value); setPlSelected(null); }}
+          placeholder="Buscar playlist pelo nome…"
+          className="pl-8 h-9"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </div>
+
+      {plQuery.trim().length >= 2 && (
+        <div className="max-h-52 overflow-y-auto space-y-1 pr-1 -mr-1">
+          {plLoading && (
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground py-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> Buscando…
+            </div>
+          )}
+          {!plLoading && plHits.length === 0 && (
+            <div className="text-[11px] text-muted-foreground py-2">Nenhuma playlist operável com esse nome.</div>
+          )}
+          {plHits.map((h) => {
+            const isSel = plSelected?.id === h.id;
+            const sent = plSentIds.includes(h.id);
+            return (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => setPlSelected(isSel ? null : h)}
+                className={`w-full text-left px-2.5 py-2 rounded-md border transition-colors ${
+                  isSel ? "border-primary/50 bg-primary/5" : "border-border/60 hover:bg-muted/40"
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-medium truncate">{h.name}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {fmtNum(h.followers)} seguidores
+                    </div>
+                  </div>
+                  {sent && (
+                    <Badge variant="secondary" className="text-[9px] h-4 px-1.5 shrink-0">enviada</Badge>
+                  )}
+                  {h.already_present && !sent && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1.5 shrink-0 border-amber-500/40 text-amber-500">
+                      já contém
+                    </Badge>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {plSelected && (
+        <div className="space-y-2 pt-1">
+          {plSelected.already_present && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 text-[11px]">
+              <Copy className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+              <span>
+                <span className="font-medium">{plSelected.name}</span> já tem essa música.
+                Confirmar vai criar uma <span className="font-medium">segunda entrada</span> na playlist.
+              </span>
+            </div>
+          )}
+          <Button size="sm" onClick={doPlaceOnPlaylist} disabled={plSending} className="gap-2 w-full">
+            {plSending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {plSelected.already_present ? "Confirmar segunda entrada" : "Enviar só para esta playlist"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
   const renderStepPreview = () => {
     if (!preview || !resolved) return null;
     const poolTotal = preview.pool_total ?? 0;
@@ -372,6 +557,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             </div>
           </div>
         )}
+
+        {renderTargetedSend()}
       </div>
     );
   };
