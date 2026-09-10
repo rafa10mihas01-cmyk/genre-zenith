@@ -204,13 +204,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   );
 
   const doResolve = async () => {
-    const value = input.trim();
-    if (!value) return;
-    const tokens = parseInputs(value);
+    const raw = input.trim();
+    if (!raw) return;
+    const tokens = parseInputs(raw);
     if (tokens.length > 1) {
       void startBatch(tokens);
       return;
     }
+    const value = tokens[0] ?? raw;
     setStep("resolving");
     setErrorMsg(null);
     try {
