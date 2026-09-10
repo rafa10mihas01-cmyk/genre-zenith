@@ -1024,6 +1024,33 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 {step === "resolving" ? "Buscando…" : "Buscar"}
               </Button>
             </>
+          ) : step === "batch" ? (
+            (() => {
+              const identifying = batchItems.some((it) => it.status === "pending" || it.status === "resolving");
+              const pending = batchItems.filter((it) => (it.status === "ready" || it.status === "error") && it.trackId && it.genreId);
+              const failed = batchItems.filter((it) => it.status === "error" && it.trackId && it.genreId);
+              return (
+                <>
+                  <Button variant="outline" onClick={reset} disabled={batchRunning} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" /> Voltar
+                  </Button>
+                  {batchRunning ? (
+                    <Button variant="destructive" onClick={() => { batchStopRef.current = true; }} className="gap-2">
+                      <X className="h-4 w-4" /> Parar fila
+                    </Button>
+                  ) : batchDone && failed.length > 0 ? (
+                    <Button onClick={() => void runBatch(true)} className="gap-2">
+                      <RefreshCw className="h-4 w-4" /> Tentar novamente ({failed.length})
+                    </Button>
+                  ) : (
+                    <Button onClick={() => void runBatch(false)} disabled={identifying || pending.length === 0} className="gap-2">
+                      {identifying && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {identifying ? "Identificando…" : `Iniciar fila (${pending.length})`}
+                    </Button>
+                  )}
+                </>
+              );
+            })()
           ) : step === "metadata" ? (
             <>
               <Button variant="outline" onClick={reset} className="gap-2"><ArrowLeft className="h-4 w-4" /> Voltar</Button>
