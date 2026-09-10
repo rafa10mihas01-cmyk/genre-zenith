@@ -557,7 +557,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   };
 
   const renderStepIdleOrResolving = () => {
-    const count = parseInputs(input).length;
+    const parsedAll = parseAllInputs(input);
+    const count = parsedAll.items.length;
     return (
       <div className="space-y-2">
         <Label htmlFor="track-input" className="text-[12px]">
