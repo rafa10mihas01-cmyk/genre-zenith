@@ -121,7 +121,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     setDistributed(null);
     setPlQuery("");
     setPlHits([]);
-    setPlSelected(null);
+    setPlSelected([]);
     setPlSentIds([]);
   };
 
