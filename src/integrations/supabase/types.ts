@@ -2694,6 +2694,7 @@ export type Database = {
           added_at: string | null
           attempts: number
           catalog_track_id: string
+          copy_index: number
           created_at: string
           distribution_batch_id: string | null
           id: string
@@ -2721,6 +2722,7 @@ export type Database = {
           added_at?: string | null
           attempts?: number
           catalog_track_id: string
+          copy_index?: number
           created_at?: string
           distribution_batch_id?: string | null
           id?: string
@@ -2748,6 +2750,7 @@ export type Database = {
           added_at?: string | null
           attempts?: number
           catalog_track_id?: string
+          copy_index?: number
           created_at?: string
           distribution_batch_id?: string | null
           id?: string
@@ -15545,6 +15548,7 @@ export type Database = {
           added_at: string | null
           attempts: number
           catalog_track_id: string
+          copy_index: number
           created_at: string
           distribution_batch_id: string | null
           id: string
@@ -15900,6 +15904,14 @@ export type Database = {
       engine_create_distribution_plan_v1: {
         Args: { _days?: number; _track_id: string }
         Returns: string
+      }
+      engine_place_catalog_track_on_playlist: {
+        Args: {
+          p_allow_duplicate?: boolean
+          p_playlist_id: string
+          p_track_id: string
+        }
+        Returns: Json
       }
       engine_priority_compute_all: {
         Args: { _limit?: number }
