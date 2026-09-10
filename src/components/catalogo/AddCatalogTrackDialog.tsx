@@ -774,7 +774,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
   };
 
-  const renderTargetedSend = () => {
+  const renderTargetedSend = (batchMode = false) => {
     const dupCount = plSelected.filter((p) => p.already_present).length;
     return (
     <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
