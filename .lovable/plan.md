@@ -1,57 +1,35 @@
+# Enviar música para uma playlist específica (inclusive duplicada)
 
-# Nova regra de posicionamento de catálogo
+## O que você quer
+Na tela de adicionar música do Catálogo, quando a faixa já está cadastrada e o sistema diz "não falta nenhuma playlist", você quer uma busca para escolher **uma playlist específica** e mandar a música para ela — mesmo que ela já esteja lá (segunda cópia proposital).
 
-## O que vai mudar (em linguagem de negócio)
-
-1. **Playlists pequenas (≤ 5.000 seguidores)** — catálogo pode entrar em qualquer posição, inclusive na 1, desde que **nunca fique duas do catálogo em sequência** (sempre alterna com terceiros).
-2. **Playlists grandes (> 5.000 seguidores)** — posições **1 a 5 ficam reservadas** para músicas de campanhas ativas / hot releases. Catálogo só pode entrar a partir da **posição 6**, mantendo a mesma alternância.
-3. **Exceção da regra 2:** se a música do catálogo estiver amarrada a uma **campanha ativa**, ela pode ocupar 1-5 mesmo em playlist grande.
-4. **Sempre** grava a posição no banco E manda para o Spotify — nunca mais "cai no fim da playlist" por default.
-
-> Observação: o sistema hoje não tem métrica de "ouvintes mensais de playlist" (isso é métrica de artista). Vou usar **`followers` da playlist como proxy** — que é o número que já sustentamos em `managed_playlists.followers`. Se você quiser trocar depois pelo dado da VPS/observer, é só apontar a nova coluna.
-
----
+## Como funciona hoje
+- A tela só trabalha por **gênero**: ela pega todas as playlists do gênero e joga a música nas que ainda não têm.
+- Existe uma trava no banco que impede a mesma música ter duas entradas vivas na mesma playlist. Foi ela que evitou muita sujeira no passado, então não vou removê-la — vou torná-la consciente de "cópia 1" e "cópia 2".
 
 ## O que vou construir
 
-### 1. Nova função SQL `fn_compute_catalog_target_position(playlist_id, spotify_track_id, is_campaign_active)`
+### 1. Busca de playlist na tela de adicionar música
+Na etapa de revisão (a da imagem), abaixo dos cartões de números:
+- Campo "Buscar playlist" com resultados ao digitar (nome da playlist, gênero, seguidores).
+- A busca mostra todas as playlists operáveis, inclusive as que **já têm** a música — essas ganham uma marca "já contém".
+- Ao escolher uma playlist, aparece um botão "Enviar só para esta playlist".
+- Se a playlist escolhida já contém a música, aparece um aviso claro: "Esta playlist já tem a música. Confirmar vai criar uma segunda entrada." com confirmação explícita.
+- O botão "Distribuir para N playlists" continua exatamente como está — nada do fluxo atual muda.
 
-Retorna a **primeira posição válida** para inserir a faixa, aplicando a regra acima. Passos:
+### 2. Envio direcionado no backend
+- Nova função de banco que recebe a música + uma playlist específica + a marcação de "cópia extra permitida", e cria a entrada de distribuição só para aquela playlist.
+- A trava de duplicidade passa a considerar o número da cópia: cópia 1 continua protegida contra duplicação acidental; uma cópia 2 só existe quando você pedir explicitamente pela nova busca.
+- A execução (que efetivamente coloca a faixa na playlist no Spotify) reaproveita a fila já existente — nenhum executor novo.
+- Registro no log de origem indicando que foi envio manual direcionado, para auditoria.
 
-1. Carrega a playlist inteira em ordem (`managed_playlist_tracks`).
-2. Marca cada faixa como `catalog` (se aparece em `catalog_tracks`) ou `terceiro`.
-3. Lê `followers` da playlist para escolher o piso: `1` (≤5k) ou `6` (>5k, exceto quando `is_campaign_active=true` → piso volta a `1`).
-4. Percorre do piso até o fim procurando a primeira posição `p` onde: `faixa[p-1]` não é catálogo **e** `faixa[p]` (a que vai ser empurrada pra baixo) não é catálogo.
-5. Se não achar nenhuma slot válido no meio, devolve `tracks_count` (append no fim) — cenário raro (playlist cheia de catálogo colado). Devolve também `reason` explicando a decisão.
+### 3. Proteções mantidas
+- Playlists sem autorização válida ou marcadas para não operar continuam fora da busca.
+- Máximo de 2 cópias da mesma música na mesma playlist.
+- Campanhas e prioridade de posição seguem intocadas.
 
-### 2. Ajuste no worker `occupancy-executor`
-
-- Antes do `addPlaylistTracks`, chama `fn_compute_catalog_target_position` passando um flag `is_campaign_active` (calculado com um `EXISTS` em campanhas ativas que referenciam a track).
-- Passa `position` para o Spotify: `addPlaylistTracks(playlistId, [uri], token, { position })`.
-- Grava `position` no `catalog_placements.position` no `markActive` (hoje está `NULL` pra tudo desde 26/jun).
-- Passa `position` também para `mptInsertFromCatalog` para manter `managed_playlist_tracks.position` consistente localmente.
-
-### 3. Log de auditoria da decisão
-
-Estende `catalog_placement_execution_log` para gravar `position_reason` (ex.: `"pos=1 followers=3200 alt_ok"`, `"pos=6 hot_zone_skip"`, `"pos=42 fallback_append"`). Isso permite auditar depois se a regra está sendo respeitada em produção.
-
-### 4. Correção do passivo (opcional, você aprova depois)
-
-As ~583 placements de **Passa O Bigode 2** e **O Tbt que ele Quer** hoje estão empilhadas no FIM das playlists (posição relativa ~1.0). Depois da correção, posso rodar um "reposicionador" que remove essas faixas do fim e reinsere na posição correta — um lote controlado por playlist, respeitando rate limit do Spotify. **Isso não faz parte desta entrega inicial** — entrego a nova regra rodando pra frente e você decide se quer reprocessar o passivo.
-
----
-
-## Ordem de execução
-
-1. Migration: criar `fn_compute_catalog_target_position` + adicionar coluna `position_reason TEXT` em `catalog_placement_execution_log`.
-2. Editar `supabase/functions/occupancy-executor/index.ts` para chamar a nova função, passar `position` pro Spotify e persistir.
-3. Deploy da edge function.
-4. Validação em produção: rodar 5-10 minutos, ler `catalog_placement_execution_log` e conferir que `position_reason` bate com a regra.
-
----
-
-## Perguntas antes de eu apertar o botão
-
-- **Confirma que `followers` é o número certo pra usar como corte de 5.000?** (é o que temos hoje). Se você tem outra fonte, me diga qual coluna/tabela.
-- **"Hot release" (>5k, posições 1-5)** — considero como "hot" apenas músicas com **campanha ativa vinculada**? Ou você quer também uma flag manual tipo `catalog_tracks.is_hot_release`?
-- **Reprocessar o passivo** de Passa O Bigode + O Tbt depois? (recomendo fortemente — hoje elas estão invisíveis no fim de ~583 playlists).
+## Detalhes técnicos
+- Frontend: `src/components/catalogo/AddCatalogTrackDialog.tsx` (etapa `preview`), busca via consulta a `managed_playlists` filtrando `execution_mode='API_READY'` e `operational_status <> 'do_not_operate'`, com marcação de presença via `catalog_placements` + `managed_playlist_tracks`.
+- Banco: coluna `copy_index smallint NOT NULL DEFAULT 1` em `catalog_placements`; índices únicos parciais `idx_catalog_placements_unique_alive` e `ux_catalog_placements_active_track_playlist` recriados incluindo `copy_index`; nova RPC `engine_place_catalog_track_on_playlist(p_track_id uuid, p_playlist_id uuid, p_allow_duplicate boolean)`.
+- Edge Function: novo endpoint fino `place-catalog-track-on-playlist` seguindo o padrão de `distribute-catalog-track` (mesmo guard de acesso da equipe), sem duplicar lógica de resolução de faixa.
+- `engine_create_distribution_plan` permanece inalterada (continua criando sempre `copy_index = 1`).
