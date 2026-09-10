@@ -61,16 +61,45 @@ Deno.serve(async (req) => {
       .eq("spotify_track_id", trackId)
       .maybeSingle();
     if (trackErr) return jr({ ok: false, error: "track_lookup_failed", message: trackErr.message }, 500);
-    if (!track?.id) {
-      return jr({
-        ok: false,
-        error: "track_not_in_catalog",
-        message: "Cadastre a música no catálogo antes de enviá-la para uma playlist.",
-      }, 400);
+
+    let catalogTrackId = track?.id as string | undefined;
+
+    // Música ainda não cadastrada: cria o registro no catálogo com os metadados enviados.
+    if (!catalogTrackId) {
+      const meta = (body?.track_meta ?? {}) as Record<string, unknown>;
+      const trackName = typeof meta.track_name === "string" ? meta.track_name.trim() : "";
+      const artistName = typeof meta.artist_name === "string" ? meta.artist_name.trim() : "";
+      const genreId = typeof body?.genre_id === "string" && UUID_RE.test(body.genre_id) ? body.genre_id : null;
+      if (!trackName || !artistName) {
+        return jr({
+          ok: false,
+          error: "track_not_in_catalog",
+          message: "Cadastre a música no catálogo antes de enviá-la para uma playlist.",
+        }, 400);
+      }
+      const { data: created, error: createErr } = await sb
+        .from("catalog_tracks")
+        .insert({
+          spotify_track_id: trackId,
+          spotify_uri: typeof meta.spotify_uri === "string" ? meta.spotify_uri : `spotify:track:${trackId}`,
+          isrc: typeof meta.isrc === "string" ? meta.isrc : null,
+          track_name: trackName,
+          artist_name: artistName,
+          cover_url: typeof meta.cover_url === "string" ? meta.cover_url : null,
+          genre_id: genreId,
+          added_by: userData.user.id,
+          status: "active",
+        })
+        .select("id")
+        .single();
+      if (createErr || !created?.id) {
+        return jr({ ok: false, error: "track_create_failed", message: createErr?.message ?? "insert failed" }, 500);
+      }
+      catalogTrackId = created.id;
     }
 
     const { data: rpcData, error: rpcErr } = await sb.rpc("engine_place_catalog_track_on_playlist", {
-      p_track_id: track.id,
+      p_track_id: catalogTrackId,
       p_playlist_id: playlistId,
       p_allow_duplicate: allowDuplicate,
     });
