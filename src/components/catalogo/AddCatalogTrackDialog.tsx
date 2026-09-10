@@ -166,6 +166,11 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     setPlHits([]);
     setPlSelected([]);
     setPlSentIds([]);
+    setBatchItems([]);
+    setBatchRunning(false);
+    setBatchTarget("genre");
+    setBatchDone(false);
+    batchStopRef.current = false;
   };
 
   const handleClose = (next: boolean) => {
