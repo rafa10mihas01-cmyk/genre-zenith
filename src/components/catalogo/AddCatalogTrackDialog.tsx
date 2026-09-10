@@ -371,6 +371,132 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     }
   };
 
+  // ———————————————————————————————————————————————
+  // Lote — identificação (fila) e execução (fila)
+  // ———————————————————————————————————————————————
+  const patchItem = (key: string, patch: Partial<BatchItem>) =>
+    setBatchItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+
+  const startBatch = async (tokens: string[]) => {
+    const items: BatchItem[] = tokens.map((raw, i) => ({
+      key: `${i}-${raw}`,
+      raw,
+      status: "pending",
+    }));
+    setBatchItems(items);
+    setBatchDone(false);
+    setErrorMsg(null);
+    setStep("batch");
+
+    for (const it of items) {
+      patchItem(it.key, { status: "resolving" });
+      try {
+        const { data, error } = await supabase.functions.invoke("resolve-catalog-track", {
+          body: { input: it.raw },
+        });
+        if (error) throw new Error(error.message);
+        const r = data as ResolveResult;
+        if (!r?.ok || !r.track) throw new Error(r?.message ?? r?.error ?? "Falha ao resolver faixa");
+        patchItem(it.key, {
+          status: "ready",
+          trackId: r.track.spotify_track_id,
+          trackName: r.track.track_name,
+          artistName: r.track.artist_name,
+          coverUrl: r.track.cover_url,
+          existing: !!r.existing,
+          genreId: r.detected?.suggested_genre_id ?? r.existing?.current_genre_id ?? undefined,
+        });
+      } catch (e) {
+        patchItem(it.key, { status: "error", error: (e as Error)?.message ?? "Falha ao identificar" });
+      }
+      await sleep(600);
+    }
+  };
+
+  const applyGenreToAll = (genreId: string) =>
+    setBatchItems((prev) =>
+      prev.map((it) => (it.status === "ready" || it.status === "done" ? { ...it, genreId } : it)),
+    );
+
+  const removeBatchItem = (key: string) =>
+    setBatchItems((prev) => prev.filter((it) => it.key !== key));
+
+  const runBatch = async (onlyFailed = false) => {
+    const queue = batchItems.filter(
+      (it) =>
+        it.trackId &&
+        it.genreId &&
+        (onlyFailed ? it.status === "error" : it.status === "ready" || it.status === "error"),
+    );
+    if (queue.length === 0) return;
+    if (batchTarget === "playlists" && plSelected.length === 0) {
+      toast.error("Escolha ao menos uma playlist");
+      return;
+    }
+    batchStopRef.current = false;
+    setBatchRunning(true);
+    setBatchDone(false);
+
+    for (const it of queue) {
+      if (batchStopRef.current) break;
+      patchItem(it.key, { status: "sending", error: undefined, resultMsg: undefined });
+      try {
+        if (batchTarget === "genre") {
+          const { data, error } = await supabase.functions.invoke("distribute-catalog-track", {
+            body: { input: it.trackId, genre_id: it.genreId },
+          });
+          if (error) throw new Error(error.message);
+          const r = data as DistributeResult;
+          if (!r?.ok) throw new Error(r?.message ?? r?.error ?? "Falha na distribuição");
+          patchItem(it.key, {
+            status: "done",
+            resultMsg: `${r.placements_created ?? 0} pendências criadas`,
+          });
+        } else {
+          let ok = 0;
+          const fails: string[] = [];
+          for (const pl of plSelected) {
+            const { data, error } = await supabase.functions.invoke("place-catalog-track-on-playlist", {
+              body: {
+                spotify_track_id: it.trackId,
+                managed_playlist_id: pl.id,
+                allow_duplicate: true,
+                genre_id: it.genreId ?? null,
+                track_meta: {
+                  track_name: it.trackName,
+                  artist_name: it.artistName,
+                  spotify_uri: `spotify:track:${it.trackId}`,
+                  isrc: null,
+                  cover_url: it.coverUrl ?? null,
+                },
+              },
+            });
+            const r = data as { ok?: boolean; error?: string; message?: string } | null;
+            if (error || !r?.ok) {
+              fails.push(pl.name);
+            } else {
+              ok++;
+            }
+            await sleep(400);
+          }
+          if (ok === 0) throw new Error(`nenhuma playlist aceitou (${fails.slice(0, 3).join(", ")})`);
+          patchItem(it.key, {
+            status: "done",
+            resultMsg: `${ok} playlist${ok === 1 ? "" : "s"}${fails.length ? ` · ${fails.length} falhou` : ""}`,
+          });
+        }
+      } catch (e) {
+        patchItem(it.key, { status: "error", error: (e as Error)?.message ?? "falha" });
+      }
+      await sleep(BATCH_DELAY_MS);
+    }
+
+    setBatchRunning(false);
+    setBatchDone(true);
+    onDistributed?.();
+  };
+
+
 
   // —————————————————————————————————————————————————————————
   // Render auxiliares
