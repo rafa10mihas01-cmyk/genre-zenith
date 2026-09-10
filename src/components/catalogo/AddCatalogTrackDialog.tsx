@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw, Search, Copy } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, CheckCircle2, AlertTriangle, ArrowLeft, Music, Info, RefreshCw, Search, Copy, X, ListPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -13,8 +13,51 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 
-type Step = "idle" | "resolving" | "metadata" | "previewing" | "preview" | "distributing" | "done" | "error";
+type Step =
+  | "idle" | "resolving" | "metadata" | "previewing" | "preview" | "distributing" | "done" | "error"
+  | "batch";
+
+const BATCH_MAX = 20;
+const BATCH_DELAY_MS = 1200;
+
+type BatchStatus = "pending" | "resolving" | "ready" | "sending" | "done" | "error";
+
+type BatchItem = {
+  key: string;
+  raw: string;
+  status: BatchStatus;
+  trackId?: string;
+  trackName?: string;
+  artistName?: string;
+  coverUrl?: string | null;
+  genreId?: string;
+  existing?: boolean;
+  error?: string;
+  resultMsg?: string;
+};
+
+/** Quebra a entrada em links/IDs únicos (máx. BATCH_MAX). */
+function parseInputs(value: string): string[] {
+  const parts = value
+    .split(/[\s,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const p of parts) {
+    const k = p.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p);
+    if (out.length >= BATCH_MAX) break;
+  }
+  return out;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Genre = { id: string; nome: string; slug: string };
 
@@ -123,6 +166,11 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     setPlHits([]);
     setPlSelected([]);
     setPlSentIds([]);
+    setBatchItems([]);
+    setBatchRunning(false);
+    setBatchTarget("genre");
+    setBatchDone(false);
+    batchStopRef.current = false;
   };
 
   const handleClose = (next: boolean) => {
@@ -138,6 +186,11 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const doResolve = async () => {
     const value = input.trim();
     if (!value) return;
+    const tokens = parseInputs(value);
+    if (tokens.length > 1) {
+      void startBatch(tokens);
+      return;
+    }
     setStep("resolving");
     setErrorMsg(null);
     try {
@@ -214,13 +267,22 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const [plSending, setPlSending] = useState(false);
   const [plSentIds, setPlSentIds] = useState<string[]>([]);
 
+  // ———————————————————————————————————————————————
+  // Lote: até 20 links de uma vez, processados em fila
+  // ———————————————————————————————————————————————
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchDone, setBatchDone] = useState(false);
+  const [batchTarget, setBatchTarget] = useState<"genre" | "playlists">("genre");
+  const batchStopRef = useRef(false);
+
   const togglePlaylist = (h: PlaylistHit) =>
     setPlSelected((prev) =>
       prev.some((p) => p.id === h.id) ? prev.filter((p) => p.id !== h.id) : [...prev, h],
     );
 
   useEffect(() => {
-    if (step !== "preview") return;
+    if (step !== "preview" && !(step === "batch" && batchTarget === "playlists")) return;
     const q = plQuery.trim();
     let cancelled = false;
     setPlLoading(true);
@@ -255,7 +317,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
       if (!cancelled) { setPlHits(hits); setPlLoading(false); }
     }, 350);
     return () => { cancelled = true; clearTimeout(timer); setPlLoading(false); };
-  }, [plQuery, step, resolved?.track?.spotify_track_id, selectedGenreId]);
+  }, [plQuery, step, resolved?.track?.spotify_track_id, selectedGenreId, batchTarget]);
 
   const doPlaceOnPlaylist = async () => {
     if (plSelected.length === 0 || !resolved?.track?.spotify_track_id) return;
@@ -309,6 +371,132 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     }
   };
 
+  // ———————————————————————————————————————————————
+  // Lote — identificação (fila) e execução (fila)
+  // ———————————————————————————————————————————————
+  const patchItem = (key: string, patch: Partial<BatchItem>) =>
+    setBatchItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...patch } : it)));
+
+  const startBatch = async (tokens: string[]) => {
+    const items: BatchItem[] = tokens.map((raw, i) => ({
+      key: `${i}-${raw}`,
+      raw,
+      status: "pending",
+    }));
+    setBatchItems(items);
+    setBatchDone(false);
+    setErrorMsg(null);
+    setStep("batch");
+
+    for (const it of items) {
+      patchItem(it.key, { status: "resolving" });
+      try {
+        const { data, error } = await supabase.functions.invoke("resolve-catalog-track", {
+          body: { input: it.raw },
+        });
+        if (error) throw new Error(error.message);
+        const r = data as ResolveResult;
+        if (!r?.ok || !r.track) throw new Error(r?.message ?? r?.error ?? "Falha ao resolver faixa");
+        patchItem(it.key, {
+          status: "ready",
+          trackId: r.track.spotify_track_id,
+          trackName: r.track.track_name,
+          artistName: r.track.artist_name,
+          coverUrl: r.track.cover_url,
+          existing: !!r.existing,
+          genreId: r.detected?.suggested_genre_id ?? r.existing?.current_genre_id ?? undefined,
+        });
+      } catch (e) {
+        patchItem(it.key, { status: "error", error: (e as Error)?.message ?? "Falha ao identificar" });
+      }
+      await sleep(600);
+    }
+  };
+
+  const applyGenreToAll = (genreId: string) =>
+    setBatchItems((prev) =>
+      prev.map((it) => (it.status === "ready" || it.status === "done" ? { ...it, genreId } : it)),
+    );
+
+  const removeBatchItem = (key: string) =>
+    setBatchItems((prev) => prev.filter((it) => it.key !== key));
+
+  const runBatch = async (onlyFailed = false) => {
+    const queue = batchItems.filter(
+      (it) =>
+        it.trackId &&
+        it.genreId &&
+        (onlyFailed ? it.status === "error" : it.status === "ready" || it.status === "error"),
+    );
+    if (queue.length === 0) return;
+    if (batchTarget === "playlists" && plSelected.length === 0) {
+      toast.error("Escolha ao menos uma playlist");
+      return;
+    }
+    batchStopRef.current = false;
+    setBatchRunning(true);
+    setBatchDone(false);
+
+    for (const it of queue) {
+      if (batchStopRef.current) break;
+      patchItem(it.key, { status: "sending", error: undefined, resultMsg: undefined });
+      try {
+        if (batchTarget === "genre") {
+          const { data, error } = await supabase.functions.invoke("distribute-catalog-track", {
+            body: { input: it.trackId, genre_id: it.genreId },
+          });
+          if (error) throw new Error(error.message);
+          const r = data as DistributeResult;
+          if (!r?.ok) throw new Error(r?.message ?? r?.error ?? "Falha na distribuição");
+          patchItem(it.key, {
+            status: "done",
+            resultMsg: `${r.placements_created ?? 0} pendências criadas`,
+          });
+        } else {
+          let ok = 0;
+          const fails: string[] = [];
+          for (const pl of plSelected) {
+            const { data, error } = await supabase.functions.invoke("place-catalog-track-on-playlist", {
+              body: {
+                spotify_track_id: it.trackId,
+                managed_playlist_id: pl.id,
+                allow_duplicate: true,
+                genre_id: it.genreId ?? null,
+                track_meta: {
+                  track_name: it.trackName,
+                  artist_name: it.artistName,
+                  spotify_uri: `spotify:track:${it.trackId}`,
+                  isrc: null,
+                  cover_url: it.coverUrl ?? null,
+                },
+              },
+            });
+            const r = data as { ok?: boolean; error?: string; message?: string } | null;
+            if (error || !r?.ok) {
+              fails.push(pl.name);
+            } else {
+              ok++;
+            }
+            await sleep(400);
+          }
+          if (ok === 0) throw new Error(`nenhuma playlist aceitou (${fails.slice(0, 3).join(", ")})`);
+          patchItem(it.key, {
+            status: "done",
+            resultMsg: `${ok} playlist${ok === 1 ? "" : "s"}${fails.length ? ` · ${fails.length} falhou` : ""}`,
+          });
+        }
+      } catch (e) {
+        patchItem(it.key, { status: "error", error: (e as Error)?.message ?? "falha" });
+      }
+      await sleep(BATCH_DELAY_MS);
+    }
+
+    setBatchRunning(false);
+    setBatchDone(true);
+    onDistributed?.();
+  };
+
+
 
   // —————————————————————————————————————————————————————————
   // Render auxiliares
@@ -347,25 +535,174 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
   };
 
-  const renderStepIdleOrResolving = () => (
-    <div className="space-y-2">
-      <Label htmlFor="track-input" className="text-[12px]">Spotify URL, URI ou ID (faixa ou álbum)</Label>
-      <Input
-        id="track-input"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="https://open.spotify.com/track/... ou /album/..."
+  const renderStepIdleOrResolving = () => {
+    const count = parseInputs(input).length;
+    return (
+      <div className="space-y-2">
+        <Label htmlFor="track-input" className="text-[12px]">
+          Spotify URL, URI ou ID (faixa ou álbum) — até {BATCH_MAX} de uma vez
+        </Label>
+        <Textarea
+          id="track-input"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={"https://open.spotify.com/track/...\nCole vários links, um por linha"}
+          rows={4}
+          autoFocus
+          autoComplete="off"
+          spellCheck={false}
+          disabled={step === "resolving"}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && step === "idle" && parseInputs(input).length === 1) {
+              e.preventDefault();
+              doResolve();
+            }
+          }}
+        />
+        <div className="text-[11px] text-muted-foreground">
+          {count > 1
+            ? `${count} link${count === 1 ? "" : "s"} detectado${count === 1 ? "" : "s"} — vai abrir o modo lote (fila, uma música por vez).`
+            : "Um link por linha. Com 2 ou mais, o cadastro entra em modo lote."}
+        </div>
+      </div>
+    );
+  };
 
-        autoFocus
-        autoComplete="off"
-        spellCheck={false}
-        disabled={step === "resolving"}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && step === "idle" && input.trim()) doResolve();
-        }}
-      />
-    </div>
-  );
+  const renderStepBatch = () => {
+    const total = batchItems.length;
+    const resolving = batchItems.some((it) => it.status === "resolving" || it.status === "pending");
+    const doneCount = batchItems.filter((it) => it.status === "done").length;
+    const errorCount = batchItems.filter((it) => it.status === "error").length;
+    const readyCount = batchItems.filter((it) => it.status === "ready").length;
+    const missingGenre = batchItems.filter((it) => it.status === "ready" && !it.genreId).length;
+    const processed = doneCount + errorCount;
+
+    return (
+      <div className="space-y-3 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[12px] font-medium flex items-center gap-1.5">
+            <ListPlus className="h-3.5 w-3.5" /> Lote de {total} música{total === 1 ? "" : "s"}
+          </div>
+          <div className="text-[11px] text-muted-foreground tabular-nums">
+            {resolving ? "Identificando…" : `${doneCount} ok · ${errorCount} erro · ${readyCount} na fila`}
+          </div>
+        </div>
+
+        {(batchRunning || batchDone) && (
+          <Progress value={total ? (processed / total) * 100 : 0} className="h-1.5" />
+        )}
+
+        <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1 -mr-1">
+          {batchItems.map((it) => (
+            <div key={it.key} className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2 min-w-0">
+              {it.coverUrl ? (
+                <img src={it.coverUrl} alt={it.trackName ?? ""} className="h-8 w-8 rounded shrink-0 object-cover ring-1 ring-border" />
+              ) : (
+                <div className="h-8 w-8 rounded shrink-0 bg-muted flex items-center justify-center">
+                  {it.status === "resolving" || it.status === "sending"
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    : <Music className="h-3.5 w-3.5 text-muted-foreground" />}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-[12px] font-medium truncate">
+                  {it.trackName ?? it.raw}
+                </div>
+                <div className="text-[10px] text-muted-foreground truncate">
+                  {it.status === "error"
+                    ? <span className="text-destructive">{it.error}</span>
+                    : it.status === "done"
+                      ? <span className="text-primary">{it.resultMsg ?? "concluído"}</span>
+                      : it.artistName ?? "identificando…"}
+                </div>
+              </div>
+
+              {it.status === "ready" || it.status === "error" || it.status === "done" ? (
+                <div className="w-36 shrink-0">
+                  <Select
+                    value={it.genreId ?? ""}
+                    onValueChange={(v) => patchItem(it.key, { genreId: v })}
+                    disabled={batchRunning}
+                  >
+                    <SelectTrigger className="h-8 text-[11px]">
+                      <SelectValue placeholder="Gênero" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {genres.map((g) => (
+                        <SelectItem key={g.id} value={g.id} className="capitalize text-[12px]">{g.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
+              {it.status === "done" && <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+              {it.existing && it.status !== "done" && (
+                <Badge variant="outline" className="text-[9px] h-4 px-1.5 shrink-0 border-amber-500/40 text-amber-500">já existe</Badge>
+              )}
+              {!batchRunning && (
+                <button
+                  type="button"
+                  onClick={() => removeBatchItem(it.key)}
+                  className="p-1 rounded hover:bg-muted shrink-0"
+                  aria-label="Remover do lote"
+                >
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {!resolving && (
+          <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-[11px] shrink-0">Aplicar gênero a todas</Label>
+              <Select value="" onValueChange={applyGenreToAll} disabled={batchRunning}>
+                <SelectTrigger className="h-8 text-[11px] w-44"><SelectValue placeholder="Selecionar…" /></SelectTrigger>
+                <SelectContent>
+                  {genres.map((g) => (
+                    <SelectItem key={g.id} value={g.id} className="capitalize text-[12px]">{g.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={batchTarget === "genre" ? "default" : "outline"}
+                onClick={() => setBatchTarget("genre")}
+                disabled={batchRunning}
+                className="flex-1 text-[11px]"
+              >
+                Distribuir no gênero
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={batchTarget === "playlists" ? "default" : "outline"}
+                onClick={() => setBatchTarget("playlists")}
+                disabled={batchRunning}
+                className="flex-1 text-[11px]"
+              >
+                Só playlists escolhidas
+              </Button>
+            </div>
+
+            {batchTarget === "playlists" && renderTargetedSend(true)}
+
+            {missingGenre > 0 && (
+              <div className="text-[11px] text-amber-500">
+                {missingGenre} música{missingGenre === 1 ? "" : "s"} sem gênero — escolha antes de iniciar.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
 
   const renderStepMetadata = () => {
@@ -437,7 +774,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
   };
 
-  const renderTargetedSend = () => {
+  const renderTargetedSend = (batchMode = false) => {
     const dupCount = plSelected.filter((p) => p.already_present).length;
     return (
     <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
@@ -509,7 +846,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         })}
       </div>
 
-      {plSelected.length > 0 && (
+      {plSelected.length > 0 && !batchMode && (
         <div className="space-y-2 pt-1">
           {dupCount > 0 && (
             <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 text-[11px]">
@@ -637,6 +974,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   // —————————————————————————————————————————————————————————
 
   const title =
+    step === "batch" ? "Cadastrar em lote" :
     step === "preview" || step === "previewing" || step === "distributing" ? "Confirmar distribuição" :
     step === "done" ? "Distribuição concluída" :
     step === "error" ? "Erro" :
@@ -644,12 +982,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const description =
     step === "idle" || step === "resolving"
-      ? "Cole a URL do Spotify para buscar a faixa."
-      : step === "metadata"
-        ? "Confirme o gênero antes do preview."
-        : step === "preview" || step === "previewing" || step === "distributing"
-          ? "Revise o impacto antes de criar os placements."
-          : undefined;
+      ? "Cole uma ou várias URLs do Spotify (até 20)."
+      : step === "batch"
+        ? "As músicas entram uma por vez, devagar, para não sobrecarregar o Spotify."
+        : step === "metadata"
+          ? "Confirme o gênero antes do preview."
+          : step === "preview" || step === "previewing" || step === "distributing"
+            ? "Revise o impacto antes de criar os placements."
+            : undefined;
 
 
   const isBusy = step === "resolving" || step === "previewing" || step === "distributing";
@@ -671,6 +1011,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 ? <div className="py-8 flex items-center justify-center text-sm text-muted-foreground gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Calculando preview…</div>
                 : renderStepPreview()
             )}
+            {step === "batch" && renderStepBatch()}
             {step === "done" && renderStepDone()}
             {step === "error" && renderStepError()}
 
@@ -683,6 +1024,33 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 {step === "resolving" ? "Buscando…" : "Buscar"}
               </Button>
             </>
+          ) : step === "batch" ? (
+            (() => {
+              const identifying = batchItems.some((it) => it.status === "pending" || it.status === "resolving");
+              const pending = batchItems.filter((it) => (it.status === "ready" || it.status === "error") && it.trackId && it.genreId);
+              const failed = batchItems.filter((it) => it.status === "error" && it.trackId && it.genreId);
+              return (
+                <>
+                  <Button variant="outline" onClick={reset} disabled={batchRunning} className="gap-2">
+                    <ArrowLeft className="h-4 w-4" /> Voltar
+                  </Button>
+                  {batchRunning ? (
+                    <Button variant="destructive" onClick={() => { batchStopRef.current = true; }} className="gap-2">
+                      <X className="h-4 w-4" /> Parar fila
+                    </Button>
+                  ) : batchDone && failed.length > 0 ? (
+                    <Button onClick={() => void runBatch(true)} className="gap-2">
+                      <RefreshCw className="h-4 w-4" /> Tentar novamente ({failed.length})
+                    </Button>
+                  ) : (
+                    <Button onClick={() => void runBatch(false)} disabled={identifying || pending.length === 0} className="gap-2">
+                      {identifying && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {identifying ? "Identificando…" : `Iniciar fila (${pending.length})`}
+                    </Button>
+                  )}
+                </>
+              );
+            })()
           ) : step === "metadata" ? (
             <>
               <Button variant="outline" onClick={reset} className="gap-2"><ArrowLeft className="h-4 w-4" /> Voltar</Button>
