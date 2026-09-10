@@ -515,75 +515,12 @@ async function runCatalogPlacements(sb: any, limit: number) {
         cntInsertOnly++;
       }
 
-      // === CÁLCULO DA POSIÇÃO-ALVO (nova regra 04/07/2026) ===================
-      // Regra:
-      //   • playlist ≤ 5k followers → catálogo pode ocupar qualquer posição
-      //   • playlist > 5k followers → posições 1..5 são hot zone (reservadas
-      //     para campanhas ativas); catálogo comum entra a partir da 6
-      //   • Sempre alterna com faixas de terceiros (nunca 2 catálogo em sequência)
-      // Excepção: música com campanha ativa vinculada ignora a hot zone.
-      let targetPosition: number | null = null;
-      let positionReason: string | null = null;
-      try {
-        const { data: posData, error: posErr } = await sb.rpc(
-          "fn_compute_catalog_target_position",
-          {
-            _managed_playlist_id: p.managed_playlist_id,
-            _spotify_track_id: p.spotify_track_id,
-            _is_campaign_active: p.is_campaign_active,
-          },
-        );
-        if (!posErr && Array.isArray(posData) && posData.length > 0) {
-          const row = posData[0] as { slot_position: number; reason: string };
-          if (typeof row.slot_position === "number" && row.slot_position >= 0) {
-            targetPosition = row.slot_position;
-            positionReason = row.reason ?? null;
-          }
-        } else if (posErr) {
-          positionReason = `pos_rpc_failed: ${posErr.message}`;
-        }
-      } catch (e: any) {
-        positionReason = `pos_rpc_exception: ${e?.message ?? String(e)}`;
-      }
-
+      // === POSIÇÃO: SEMPRE NO FINAL (regra 10/09/2026) =======================
+      // Toda faixa de catálogo entra no fim da playlist e permanece lá.
+      // Não calculamos posição-alvo nem reposicionamos depois — isso elimina
+      // qualquer conflito com faixas de campanha e reduz chamadas ao Spotify.
+      const positionReason = "append_end";
       const insertOpts: { position?: number } = {};
-      if (typeof targetPosition === "number") {
-        // Clamp defensivo contra "index out of bounds" do Spotify
-        const maxSafe = typeof p.tracks_count === "number" ? p.tracks_count : targetPosition;
-        insertOpts.position = Math.max(0, Math.min(targetPosition, maxSafe));
-      }
-
-      // === PROTEÇÃO DE CAMPANHA (04/07/2026) ================================
-      // Defesa em profundidade: `fn_compute_catalog_target_position` já exclui
-      // slots reservados por campanha, mas antes de qualquer chamada ao
-      // Spotify verificamos explicitamente que a posição-alvo não desloca uma
-      // faixa de campanha. Se detectarmos conflito → skip com motivo
-      // 'campaign_position_reserved' (a campanha sempre vence; nunca movemos).
-      if (typeof insertOpts.position === "number") {
-        try {
-          const { data: occ } = await sb
-            .from("v_playlist_track_origin")
-            .select("origin, spotify_track_id")
-            .eq("managed_playlist_id", p.managed_playlist_id)
-            .eq("position", insertOpts.position)
-            .eq("origin", "Campaign")
-            .maybeSingle();
-          if (occ && (occ as any).origin === "Campaign") {
-            await markSkipped(
-              p,
-              "campaign_position_reserved",
-              `position ${insertOpts.position} reservada por campanha (track=${(occ as any).spotify_track_id})`,
-              1800,
-              null,
-            );
-            cntSkipped++;
-            continue;
-          }
-        } catch (_e) {
-          // Falha de leitura defensiva não deve derrubar o placement; a função
-          // SQL de cálculo já é a proteção primária.
-        }
-      }
 
       const addRes = await addPlaylistTracks(p.spotify_playlist_id, [uri], token, insertOpts);
       cntSpotify++;
