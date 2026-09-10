@@ -583,9 +583,14 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         />
         <div className="text-[11px] text-muted-foreground">
           {count > 1
-            ? `${count} link${count === 1 ? "" : "s"} detectado${count === 1 ? "" : "s"} — vai abrir o modo lote (fila, uma música por vez).`
-            : "Um link por linha. Com 2 ou mais, o cadastro entra em modo lote."}
+            ? `${count} músicas reconhecidas — vai abrir o modo lote (fila, uma por vez).`
+            : "Pode colar a lista inteira com números e nomes junto: só os links do Spotify são aproveitados."}
         </div>
+        {parsedAll.overflow > 0 && (
+          <div className="text-[11px] text-amber-500">
+            Você colou {count + parsedAll.overflow} links. Só os {BATCH_MAX} primeiros entram agora — os outros {parsedAll.overflow} ficam para a próxima leva.
+          </div>
+        )}
       </div>
     );
   };
