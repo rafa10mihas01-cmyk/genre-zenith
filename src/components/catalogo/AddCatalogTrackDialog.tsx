@@ -267,6 +267,15 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const [plSending, setPlSending] = useState(false);
   const [plSentIds, setPlSentIds] = useState<string[]>([]);
 
+  // ———————————————————————————————————————————————
+  // Lote: até 20 links de uma vez, processados em fila
+  // ———————————————————————————————————————————————
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchDone, setBatchDone] = useState(false);
+  const [batchTarget, setBatchTarget] = useState<"genre" | "playlists">("genre");
+  const batchStopRef = useRef(false);
+
   const togglePlaylist = (h: PlaylistHit) =>
     setPlSelected((prev) =>
       prev.some((p) => p.id === h.id) ? prev.filter((p) => p.id !== h.id) : [...prev, h],
