@@ -13,8 +13,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { copyLink, copyLinks, playlistUrl } from "@/lib/copyLinks";
-
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 
@@ -36,7 +41,12 @@ type Occupancy = {
   third_party_target: number | null;
   third_party_excess: number | null;
 };
-type Bridge = { id: string; spotify_playlist_id: string | null; playlist_type: string | null };
+type Bridge = {
+  id: string;
+  spotify_playlist_id: string | null;
+  playlist_type: string | null;
+  genre_id: string | null;
+};
 type Attribution = {
   spotify_playlist_id: string | null;
   catalog_track_id: string | null;
@@ -49,6 +59,8 @@ type Row = {
   spotify_playlist_id: string | null;
   playlist_name: string;
   playlist_type: "CAMPAIGN" | "CATALOG";
+  genre_id: string | null;
+  genre_name: string | null;
 
   catalog_capacity: number;
   active_placements: number;
