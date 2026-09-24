@@ -588,13 +588,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     return (
       <div className="space-y-2">
         <Label htmlFor="track-input" className="text-[12px]">
-          Spotify URL, URI ou ID (faixa ou álbum) — até {BATCH_MAX} de uma vez
+          Links do Spotify
         </Label>
         <Textarea
           id="track-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={"https://open.spotify.com/track/...\nCole vários links, um por linha"}
+          placeholder="https://open.spotify.com/track/..."
           rows={4}
           autoFocus
           autoComplete="off"
@@ -609,8 +609,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         />
         <div className="text-[11px] text-muted-foreground">
           {count > 1
-            ? `${count} músicas reconhecidas — vai abrir o modo lote (fila, uma por vez).`
-            : "Pode colar a lista inteira com números e nomes junto: só os links do Spotify são aproveitados."}
+            ? `${count} músicas reconhecidas.`
+            : `Faixas ou álbuns, um por linha. Até ${BATCH_MAX} por vez.`}
         </div>
         {parsedAll.overflow > 0 && (
           <div className="text-[11px] text-amber-500">
@@ -836,38 +836,40 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const renderTargetedSend = (batchMode = false) => {
     const dupCount = plSelected.filter((p) => p.already_present).length;
     return (
-    <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
+    <div className="space-y-3">
       <div className="space-y-0.5">
-        <div className="text-[12px] font-medium">
-          {destMode === "campaign" ? "Escolher playlists de campanha" : "Escolher playlists de catálogo"}
+        <div className="text-[13px] font-medium text-foreground">
+          {destMode === "campaign" ? "Playlists de campanha" : "Playlists de destino"}
         </div>
-        <div className="text-[11px] text-muted-foreground">
-          {destMode === "campaign"
-            ? "Marque as playlists de campanha que vão receber a música. Se alguma já tiver a música, o envio cria uma segunda entrada proposital."
-            : "Marque quantas quiser (ou busque pelo nome). Playlists que já têm a música ficam bloqueadas — no catálogo não há cópia duplicada."}
+        <div className="text-[12px] text-muted-foreground">
+          Selecione onde a música será adicionada.
         </div>
       </div>
 
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           value={plQuery}
           onChange={(e) => setPlQuery(e.target.value)}
-          placeholder="Buscar playlist pelo nome…"
-          className="pl-8 h-9"
+          placeholder="Buscar playlist"
+          className="pl-9 h-10"
           autoComplete="off"
           spellCheck={false}
         />
       </div>
 
-      <div className="max-h-52 overflow-y-auto space-y-1 pr-1 -mr-1">
+      <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 -mr-1">
         {plLoading && (
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground py-2">
-            <Loader2 className="h-3 w-3 animate-spin" /> Buscando…
+          <div className="flex items-center gap-2 text-[12px] text-muted-foreground py-3">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando playlists
           </div>
         )}
         {!plLoading && plHits.length === 0 && (
-          <div className="text-[11px] text-muted-foreground py-2">Nenhuma playlist operável encontrada.</div>
+          <div className="rounded-xl border border-dashed border-border/60 py-6 text-center text-[12px] text-muted-foreground">
+            {destMode === "campaign"
+              ? "Nenhuma playlist de campanha neste gênero."
+              : "Nenhuma playlist encontrada."}
+          </div>
         )}
         {plHits.map((h) => {
           const isSel = plSelected.some((p) => p.id === h.id);
@@ -879,25 +881,26 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               type="button"
               disabled={blocked}
               onClick={() => togglePlaylist(h)}
-              className={`w-full text-left px-2.5 py-2 rounded-md border transition-colors ${
+              className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
                 blocked ? "border-border/40 opacity-50 cursor-not-allowed" :
-                isSel ? "border-primary/50 bg-primary/5" : "border-border/60 hover:bg-muted/40"
+                isSel ? "border-primary/50 bg-primary/5" : "border-border/60 bg-background/40 hover:bg-muted/40"
               }`}
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className={`h-3.5 w-3.5 rounded-[4px] border shrink-0 flex items-center justify-center ${
-                    isSel ? "bg-primary border-primary" : "border-border"
+                  className={`h-4 w-4 rounded-[5px] border shrink-0 flex items-center justify-center ${
+                    isSel ? "bg-primary border-primary" : "border-muted-foreground/40"
                   }`}
                 >
                   {isSel && <CheckCircle2 className="h-3 w-3 text-primary-foreground" />}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-medium truncate">{h.name}</div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[13px] font-medium text-foreground truncate" title={h.name}>{h.name}</div>
+                  <div className="text-[11px] text-muted-foreground tabular-nums">
                     {fmtNum(h.followers)} seguidores
                   </div>
                 </div>
+
                 {sent && (
                   <Badge variant="secondary" className="text-[9px] h-4 px-1.5 shrink-0">enviada</Badge>
                 )}
@@ -959,30 +962,23 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </div>
         )}
 
-        {destMode === "campaign" ? (
-          <p className="text-[12px] text-muted-foreground leading-relaxed">
-            Modo <span className="text-foreground font-medium">Campanha</span>: a música só entra nas playlists de campanha que você marcar abaixo.
-          </p>
-        ) : (
+        {destMode === "catalog" && (
         <>
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Playlists de catálogo do gênero</div>
-            <div className="text-xl font-semibold tabular-nums leading-none mt-1">{fmtNum(poolTotal)}</div>
-          </div>
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Já possuem</div>
-            <div className="text-xl font-semibold tabular-nums leading-none mt-1">{fmtNum(presentCount)}</div>
-          </div>
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/30 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Faltam distribuir</div>
-            <div className="text-xl font-semibold tabular-nums text-primary leading-none mt-1">{fmtNum(distributionCount)}</div>
-          </div>
+        <div className="flex items-center divide-x divide-border/60 rounded-xl border border-border/60 bg-background/40">
+          {[
+            { label: "Playlists", value: poolTotal, accent: false },
+            { label: "Já possuem", value: presentCount, accent: false },
+            { label: "A receber", value: distributionCount, accent: true },
+          ].map((s) => (
+            <div key={s.label} className="flex-1 min-w-0 px-4 py-3">
+              <div className="text-[11px] text-muted-foreground">{s.label}</div>
+              <div className={`text-lg font-semibold tabular-nums leading-tight ${s.accent ? "text-primary" : "text-foreground"}`}>
+                {fmtNum(s.value)}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de catálogo de <span className="capitalize text-foreground font-medium">{genreName}</span>. As de campanha ficam de fora. <span className="text-foreground font-medium">{fmtNum(presentCount)}</span> já {presentCount === 1 ? "possui" : "possuem"} esta música; faltam distribuir para <span className="text-foreground font-medium">{fmtNum(distributionCount)}</span>.
-        </p>
 
         {distributionCount === 0 && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
@@ -1056,13 +1052,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const description =
     step === "idle" || step === "resolving"
-      ? "Cole uma ou várias URLs do Spotify (até 20)."
+      ? "Cadastre faixas do Spotify no catálogo ou em campanhas."
       : step === "batch"
         ? "As músicas entram uma por vez, devagar, para não sobrecarregar o Spotify."
         : step === "metadata"
-          ? "Confirme o gênero antes do preview."
+          ? "Defina o destino e o gênero da música."
           : step === "preview" || step === "previewing" || step === "distributing"
-            ? "Revise o impacto antes de criar os placements."
+            ? "Revise os destinos antes de confirmar."
             : undefined;
 
 
