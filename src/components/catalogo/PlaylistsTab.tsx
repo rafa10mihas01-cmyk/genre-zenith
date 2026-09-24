@@ -141,12 +141,15 @@ async function fetchAll(): Promise<Row[]> {
 
   const rows: Row[] = occ.filter((o) => typeByManaged.has(o.managed_playlist_id)).map((o) => {
     const sp = spByManaged.get(o.managed_playlist_id);
+    const gid = genreByManaged.get(o.managed_playlist_id) ?? null;
     const g = sp ? aggBySp.get(sp) : undefined;
     return {
       managed_playlist_id: o.managed_playlist_id,
       spotify_playlist_id: sp ?? null,
       playlist_name: o.playlist_name ?? "—",
       playlist_type: typeByManaged.get(o.managed_playlist_id) === "CAMPAIGN" ? "CAMPAIGN" : "CATALOG",
+      genre_id: gid,
+      genre_name: gid ? genreById.get(gid) ?? null : null,
 
       catalog_capacity: o.catalog_capacity ?? 0,
       active_placements: o.active_placements ?? 0,
