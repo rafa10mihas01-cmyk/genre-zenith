@@ -82,7 +82,7 @@ type Row = {
 };
 
 async function fetchAll(): Promise<Row[]> {
-  const [occRes, bridgeRes, attRes] = await Promise.all([
+  const [occRes, bridgeRes, attRes, genreRes] = await Promise.all([
     supabase
       .from("v_catalog_playlist_occupancy")
       .select(
@@ -91,13 +91,14 @@ async function fetchAll(): Promise<Row[]> {
       .limit(1000),
     supabase
       .from("managed_playlists")
-      .select("id, spotify_playlist_id, playlist_type")
+      .select("id, spotify_playlist_id, playlist_type, genre_id")
       .neq("playlist_type", "ARCHIVED")
       .limit(2000),
     supabase
       .from("v_catalog_track_playlist_attribution")
       .select("spotify_playlist_id, catalog_track_id, current_plays_7d, last_seen_at")
       .limit(20000),
+    supabase.from("genres").select("id, nome"),
   ]);
   if (occRes.error) throw occRes.error;
   if (bridgeRes.error) throw bridgeRes.error;
@@ -107,12 +108,20 @@ async function fetchAll(): Promise<Row[]> {
   const bridge = (bridgeRes.data ?? []) as Bridge[];
   const att = (attRes.data ?? []) as Attribution[];
 
-  // managed_playlist_id → spotify_playlist_id
+  // gêneros: só rótulo. Se a leitura falhar, a tela continua funcionando.
+  const genreById = new Map<string, string>();
+  for (const g of (genreRes.data ?? []) as { id: string; nome: string }[]) {
+    genreById.set(g.id, g.nome);
+  }
+
+  // managed_playlist_id → spotify_playlist_id / tipo / gênero
   const spByManaged = new Map<string, string>();
   const typeByManaged = new Map<string, string>();
+  const genreByManaged = new Map<string, string>();
   for (const b of bridge) {
     if (b.playlist_type) typeByManaged.set(b.id, b.playlist_type);
     if (b.spotify_playlist_id) spByManaged.set(b.id, b.spotify_playlist_id);
+    if (b.genre_id) genreByManaged.set(b.id, b.genre_id);
   }
 
   // Agregação por spotify_playlist_id: soma plays_7d, conta tracks distintas, max(last_seen_at)
