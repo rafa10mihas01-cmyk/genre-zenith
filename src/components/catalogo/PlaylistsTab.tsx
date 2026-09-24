@@ -118,7 +118,7 @@ async function fetchAll(): Promise<Row[]> {
     if (a.last_seen_at && (!g.lastSeen || a.last_seen_at > g.lastSeen)) g.lastSeen = a.last_seen_at;
   }
 
-  const rows: Row[] = occ.map((o) => {
+  const rows: Row[] = occ.filter((o) => typeByManaged.has(o.managed_playlist_id)).map((o) => {
     const sp = spByManaged.get(o.managed_playlist_id);
     const g = sp ? aggBySp.get(sp) : undefined;
     return {
