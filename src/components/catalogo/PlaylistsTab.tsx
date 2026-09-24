@@ -326,6 +326,14 @@ export function PlaylistsTab() {
         >
           <Copy className="h-3 w-3 mr-1.5" /> Copiar todas ({rows.length})
         </Button>
+        <Button
+          size="sm"
+          variant={selectMode ? "default" : "outline"}
+          className="h-8 rounded-full text-xs ml-auto"
+          onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}
+        >
+          <CheckSquare className="h-3 w-3 mr-1.5" /> {selectMode ? "Sair da seleção" : "Selecionar"}
+        </Button>
       </div>
 
       {/* Modo seleção — barra de ação em massa (Campanha/Catálogo) */}
