@@ -207,6 +207,7 @@ function Cover({ url, alt }: { url: string | null; alt: string }) {
 }
 
 const PAGE_SIZE = 24;
+const GENRE_NONE = "__none";
 
 function TypeToggle({ row, onChanged }: { row: Row; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
@@ -240,6 +241,7 @@ export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<"all" | "CATALOG" | "CAMPAIGN">("all");
+  const [genreFilter, setGenreFilter] = useState<string>("all");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -266,13 +268,45 @@ export function PlaylistsTab() {
     void q.refetch();
   };
 
-  const totals = useMemo(() => {
-    const rows = q.data ?? [];
+  // Lista filtrada — tipo + gênero. É a única lista que a tela usa (cards, cópias, contadores).
+  const rows = useMemo(() => {
+    const all = q.data ?? [];
+    return all.filter((r) => {
+      if (typeFilter !== "all" && r.playlist_type !== typeFilter) return false;
+      if (genreFilter === GENRE_NONE) return !r.genre_id;
+      if (genreFilter !== "all") return r.genre_id === genreFilter;
+      return true;
+    });
+  }, [q.data, typeFilter, genreFilter]);
+
+  // Opções do filtro de gênero — derivadas da própria lista, sem nova fonte de dado
+  const genreOptions = useMemo(() => {
+    const byId = new Map<string, { name: string; count: number }>();
+    let none = 0;
+    for (const r of q.data ?? []) {
+      if (!r.genre_id) {
+        none += 1;
+        continue;
+      }
+      const cur = byId.get(r.genre_id);
+      if (cur) cur.count += 1;
+      else byId.set(r.genre_id, { name: r.genre_name ?? "—", count: 1 });
+    }
     return {
-      withDelivery: rows.filter((r) => r.delivery_7d > 0).length,
-      totalDelivery: rows.reduce((s, r) => s + r.delivery_7d, 0),
+      items: [...byId.entries()]
+        .map(([id, v]) => ({ id, name: v.name, count: v.count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+      none,
     };
   }, [q.data]);
+
+  const totals = useMemo(
+    () => ({
+      withDelivery: rows.filter((r) => r.delivery_7d > 0).length,
+      totalDelivery: rows.reduce((s, r) => s + r.delivery_7d, 0),
+    }),
+    [rows],
+  );
 
   if (q.isLoading) {
     return (
@@ -285,7 +319,6 @@ export function PlaylistsTab() {
   }
 
   const allRows = q.data ?? [];
-  const rows = typeFilter === "all" ? allRows : allRows.filter((r) => r.playlist_type === typeFilter);
   const refetch = () => void q.refetch();
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
@@ -324,6 +357,26 @@ export function PlaylistsTab() {
               : `Campanha (${allRows.filter((r) => r.playlist_type === "CAMPAIGN").length})`}
           </Button>
         ))}
+        <Select value={genreFilter} onValueChange={(v) => { setGenreFilter(v); setPage(1); }}>
+          <SelectTrigger className="h-8 w-[190px] rounded-full text-xs">
+            <SelectValue placeholder="Todos os gêneros" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-[12px]">
+              Todos os gêneros ({allRows.length})
+            </SelectItem>
+            {genreOptions.items.map((g) => (
+              <SelectItem key={g.id} value={g.id} className="capitalize text-[12px]">
+                {g.name} ({g.count})
+              </SelectItem>
+            ))}
+            {genreOptions.none > 0 && (
+              <SelectItem value={GENRE_NONE} className="text-[12px]">
+                Sem gênero ({genreOptions.none})
+              </SelectItem>
+            )}
+          </SelectContent>
+        </Select>
         <Button
           size="sm"
           variant="outline"
