@@ -13,8 +13,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { copyLink, copyLinks, playlistUrl } from "@/lib/copyLinks";
-
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 
@@ -36,7 +41,12 @@ type Occupancy = {
   third_party_target: number | null;
   third_party_excess: number | null;
 };
-type Bridge = { id: string; spotify_playlist_id: string | null; playlist_type: string | null };
+type Bridge = {
+  id: string;
+  spotify_playlist_id: string | null;
+  playlist_type: string | null;
+  genre_id: string | null;
+};
 type Attribution = {
   spotify_playlist_id: string | null;
   catalog_track_id: string | null;
@@ -49,6 +59,8 @@ type Row = {
   spotify_playlist_id: string | null;
   playlist_name: string;
   playlist_type: "CAMPAIGN" | "CATALOG";
+  genre_id: string | null;
+  genre_name: string | null;
 
   catalog_capacity: number;
   active_placements: number;
@@ -70,7 +82,7 @@ type Row = {
 };
 
 async function fetchAll(): Promise<Row[]> {
-  const [occRes, bridgeRes, attRes] = await Promise.all([
+  const [occRes, bridgeRes, attRes, genreRes] = await Promise.all([
     supabase
       .from("v_catalog_playlist_occupancy")
       .select(
@@ -79,13 +91,14 @@ async function fetchAll(): Promise<Row[]> {
       .limit(1000),
     supabase
       .from("managed_playlists")
-      .select("id, spotify_playlist_id, playlist_type")
+      .select("id, spotify_playlist_id, playlist_type, genre_id")
       .neq("playlist_type", "ARCHIVED")
       .limit(2000),
     supabase
       .from("v_catalog_track_playlist_attribution")
       .select("spotify_playlist_id, catalog_track_id, current_plays_7d, last_seen_at")
       .limit(20000),
+    supabase.from("genres").select("id, nome"),
   ]);
   if (occRes.error) throw occRes.error;
   if (bridgeRes.error) throw bridgeRes.error;
@@ -95,12 +108,20 @@ async function fetchAll(): Promise<Row[]> {
   const bridge = (bridgeRes.data ?? []) as Bridge[];
   const att = (attRes.data ?? []) as Attribution[];
 
-  // managed_playlist_id → spotify_playlist_id
+  // gêneros: só rótulo. Se a leitura falhar, a tela continua funcionando.
+  const genreById = new Map<string, string>();
+  for (const g of (genreRes.data ?? []) as { id: string; nome: string }[]) {
+    genreById.set(g.id, g.nome);
+  }
+
+  // managed_playlist_id → spotify_playlist_id / tipo / gênero
   const spByManaged = new Map<string, string>();
   const typeByManaged = new Map<string, string>();
+  const genreByManaged = new Map<string, string>();
   for (const b of bridge) {
     if (b.playlist_type) typeByManaged.set(b.id, b.playlist_type);
     if (b.spotify_playlist_id) spByManaged.set(b.id, b.spotify_playlist_id);
+    if (b.genre_id) genreByManaged.set(b.id, b.genre_id);
   }
 
   // Agregação por spotify_playlist_id: soma plays_7d, conta tracks distintas, max(last_seen_at)
@@ -120,12 +141,15 @@ async function fetchAll(): Promise<Row[]> {
 
   const rows: Row[] = occ.filter((o) => typeByManaged.has(o.managed_playlist_id)).map((o) => {
     const sp = spByManaged.get(o.managed_playlist_id);
+    const gid = genreByManaged.get(o.managed_playlist_id) ?? null;
     const g = sp ? aggBySp.get(sp) : undefined;
     return {
       managed_playlist_id: o.managed_playlist_id,
       spotify_playlist_id: sp ?? null,
       playlist_name: o.playlist_name ?? "—",
       playlist_type: typeByManaged.get(o.managed_playlist_id) === "CAMPAIGN" ? "CAMPAIGN" : "CATALOG",
+      genre_id: gid,
+      genre_name: gid ? genreById.get(gid) ?? null : null,
 
       catalog_capacity: o.catalog_capacity ?? 0,
       active_placements: o.active_placements ?? 0,
@@ -183,6 +207,7 @@ function Cover({ url, alt }: { url: string | null; alt: string }) {
 }
 
 const PAGE_SIZE = 24;
+const GENRE_NONE = "__none";
 
 function TypeToggle({ row, onChanged }: { row: Row; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
@@ -216,6 +241,7 @@ export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<"all" | "CATALOG" | "CAMPAIGN">("all");
+  const [genreFilter, setGenreFilter] = useState<string>("all");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -242,13 +268,45 @@ export function PlaylistsTab() {
     void q.refetch();
   };
 
-  const totals = useMemo(() => {
-    const rows = q.data ?? [];
+  // Lista filtrada — tipo + gênero. É a única lista que a tela usa (cards, cópias, contadores).
+  const rows = useMemo(() => {
+    const all = q.data ?? [];
+    return all.filter((r) => {
+      if (typeFilter !== "all" && r.playlist_type !== typeFilter) return false;
+      if (genreFilter === GENRE_NONE) return !r.genre_id;
+      if (genreFilter !== "all") return r.genre_id === genreFilter;
+      return true;
+    });
+  }, [q.data, typeFilter, genreFilter]);
+
+  // Opções do filtro de gênero — derivadas da própria lista, sem nova fonte de dado
+  const genreOptions = useMemo(() => {
+    const byId = new Map<string, { name: string; count: number }>();
+    let none = 0;
+    for (const r of q.data ?? []) {
+      if (!r.genre_id) {
+        none += 1;
+        continue;
+      }
+      const cur = byId.get(r.genre_id);
+      if (cur) cur.count += 1;
+      else byId.set(r.genre_id, { name: r.genre_name ?? "—", count: 1 });
+    }
     return {
-      withDelivery: rows.filter((r) => r.delivery_7d > 0).length,
-      totalDelivery: rows.reduce((s, r) => s + r.delivery_7d, 0),
+      items: [...byId.entries()]
+        .map(([id, v]) => ({ id, name: v.name, count: v.count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+      none,
     };
   }, [q.data]);
+
+  const totals = useMemo(
+    () => ({
+      withDelivery: rows.filter((r) => r.delivery_7d > 0).length,
+      totalDelivery: rows.reduce((s, r) => s + r.delivery_7d, 0),
+    }),
+    [rows],
+  );
 
   if (q.isLoading) {
     return (
@@ -261,7 +319,6 @@ export function PlaylistsTab() {
   }
 
   const allRows = q.data ?? [];
-  const rows = typeFilter === "all" ? allRows : allRows.filter((r) => r.playlist_type === typeFilter);
   const refetch = () => void q.refetch();
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
@@ -300,6 +357,26 @@ export function PlaylistsTab() {
               : `Campanha (${allRows.filter((r) => r.playlist_type === "CAMPAIGN").length})`}
           </Button>
         ))}
+        <Select value={genreFilter} onValueChange={(v) => { setGenreFilter(v); setPage(1); }}>
+          <SelectTrigger className="h-8 w-[190px] rounded-full text-xs capitalize">
+            <SelectValue placeholder="Todos os gêneros" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-[12px]">
+              Todos os gêneros ({allRows.length})
+            </SelectItem>
+            {genreOptions.items.map((g) => (
+              <SelectItem key={g.id} value={g.id} className="capitalize text-[12px]">
+                {g.name} ({g.count})
+              </SelectItem>
+            ))}
+            {genreOptions.none > 0 && (
+              <SelectItem value={GENRE_NONE} className="text-[12px]">
+                Sem gênero ({genreOptions.none})
+              </SelectItem>
+            )}
+          </SelectContent>
+        </Select>
         <Button
           size="sm"
           variant="outline"
