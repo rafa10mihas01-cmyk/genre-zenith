@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790278309176,
+      "tag": "0000_catalog_vs_campaign_playlist_split",
+      "breakpoints": true
+    }
+  ]
+}

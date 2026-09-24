@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 // PlaylistsTab — quais playlists do catálogo geram resultado.
 // Fontes oficiais (sem nova métrica, só reagrupamento):
 //   - v_catalog_playlist_occupancy: capacidade/ocupação (já era usada)
@@ -35,7 +36,7 @@ type Occupancy = {
   third_party_target: number | null;
   third_party_excess: number | null;
 };
-type Bridge = { id: string; spotify_playlist_id: string | null };
+type Bridge = { id: string; spotify_playlist_id: string | null; playlist_type: string | null };
 type Attribution = {
   spotify_playlist_id: string | null;
   catalog_track_id: string | null;
@@ -47,6 +48,7 @@ type Row = {
   managed_playlist_id: string;
   spotify_playlist_id: string | null;
   playlist_name: string;
+  playlist_type: "CAMPAIGN" | "CATALOG";
 
   catalog_capacity: number;
   active_placements: number;
@@ -77,7 +79,7 @@ async function fetchAll(): Promise<Row[]> {
       .limit(1000),
     supabase
       .from("managed_playlists")
-      .select("id, spotify_playlist_id")
+      .select("id, spotify_playlist_id, playlist_type")
       .neq("playlist_type", "ARCHIVED")
       .limit(2000),
     supabase
@@ -95,7 +97,9 @@ async function fetchAll(): Promise<Row[]> {
 
   // managed_playlist_id → spotify_playlist_id
   const spByManaged = new Map<string, string>();
+  const typeByManaged = new Map<string, string>();
   for (const b of bridge) {
+    if (b.playlist_type) typeByManaged.set(b.id, b.playlist_type);
     if (b.spotify_playlist_id) spByManaged.set(b.id, b.spotify_playlist_id);
   }
 
@@ -114,13 +118,14 @@ async function fetchAll(): Promise<Row[]> {
     if (a.last_seen_at && (!g.lastSeen || a.last_seen_at > g.lastSeen)) g.lastSeen = a.last_seen_at;
   }
 
-  const rows: Row[] = occ.map((o) => {
+  const rows: Row[] = occ.filter((o) => typeByManaged.has(o.managed_playlist_id)).map((o) => {
     const sp = spByManaged.get(o.managed_playlist_id);
     const g = sp ? aggBySp.get(sp) : undefined;
     return {
       managed_playlist_id: o.managed_playlist_id,
       spotify_playlist_id: sp ?? null,
       playlist_name: o.playlist_name ?? "—",
+      playlist_type: typeByManaged.get(o.managed_playlist_id) === "CAMPAIGN" ? "CAMPAIGN" : "CATALOG",
 
       catalog_capacity: o.catalog_capacity ?? 0,
       active_placements: o.active_placements ?? 0,
@@ -179,9 +184,38 @@ function Cover({ url, alt }: { url: string | null; alt: string }) {
 
 const PAGE_SIZE = 24;
 
+function TypeToggle({ row, onChanged }: { row: Row; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const isCampaign = row.playlist_type === "CAMPAIGN";
+  const flip = async () => {
+    setBusy(true);
+    const next = isCampaign ? "CATALOG" : "CAMPAIGN";
+    const { error } = await supabase.from("managed_playlists").update({ playlist_type: next }).eq("id", row.managed_playlist_id);
+    setBusy(false);
+    if (error) { toast.error("Não foi possível mudar o tipo", { description: error.message }); return; }
+    toast.success(next === "CAMPAIGN" ? "Agora é playlist de Campanha" : "Agora é playlist de Catálogo");
+    onChanged();
+  };
+  return (
+    <button
+      type="button"
+      onClick={flip}
+      disabled={busy}
+      title={isCampaign ? "Campanha: só recebe música quando você escolher. Clique para virar Catálogo." : "Catálogo: recebe a distribuição normal. Clique para virar Campanha."}
+      className={cn(
+        "h-5 px-1.5 rounded border text-[9px] font-bold uppercase tracking-wider shrink-0 transition-colors disabled:opacity-50",
+        isCampaign ? "border-amber-500/50 text-amber-500" : "border-border text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {isCampaign ? "Campanha" : "Catálogo"}
+    </button>
+  );
+}
+
 export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
   const [page, setPage] = useState(1);
+  const [typeFilter, setTypeFilter] = useState<"all" | "CATALOG" | "CAMPAIGN">("all");
 
   const totals = useMemo(() => {
     const rows = q.data ?? [];
@@ -201,7 +235,9 @@ export function PlaylistsTab() {
     );
   }
 
-  const rows = q.data ?? [];
+  const allRows = q.data ?? [];
+  const rows = typeFilter === "all" ? allRows : allRows.filter((r) => r.playlist_type === typeFilter);
+  const refetch = () => void q.refetch();
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), totalPages);
   const start = (safePage - 1) * PAGE_SIZE;
@@ -231,6 +267,14 @@ export function PlaylistsTab() {
 
       {/* Cópia de links — sempre respeita a lista carregada */}
       <div className="flex items-center gap-2 flex-wrap">
+        {(["all", "CATALOG", "CAMPAIGN"] as const).map((t) => (
+          <Button key={t} size="sm" variant={typeFilter === t ? "default" : "outline"} className="h-8 rounded-full text-xs"
+            onClick={() => { setTypeFilter(t); setPage(1); }}>
+            {t === "all" ? `Todas (${allRows.length})` : t === "CATALOG"
+              ? `Catálogo (${allRows.filter((r) => r.playlist_type === "CATALOG").length})`
+              : `Campanha (${allRows.filter((r) => r.playlist_type === "CAMPAIGN").length})`}
+          </Button>
+        ))}
         <Button
           size="sm"
           variant="outline"
@@ -284,6 +328,7 @@ export function PlaylistsTab() {
                   ) : (
                     <span className="font-medium text-sm truncate">{r.playlist_name}</span>
                   )}
+                  <TypeToggle row={r} onChanged={refetch} />
                   {r.spotify_playlist_id && (
                     <button
                       type="button"
@@ -367,6 +412,7 @@ export function PlaylistsTab() {
                     </div>
                   )}
                 </div>
+                <TypeToggle row={r} onChanged={refetch} />
                 {r.spotify_playlist_id && (
                   <button
                     type="button"
