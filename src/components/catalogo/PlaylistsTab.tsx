@@ -8,7 +8,7 @@ import { toast } from "sonner";
 // Ocupação fica como informação secundária (drill-down visual).
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ListMusic, TrendingUp, Layers, Copy } from "lucide-react";
+import { ListMusic, TrendingUp, Layers, Copy, CheckSquare, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -216,6 +216,31 @@ export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<"all" | "CATALOG" | "CAMPAIGN">("all");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkSetType = async (type: "CATALOG" | "CAMPAIGN") => {
+    const ids = [...selected];
+    if (ids.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("managed_playlists").update({ playlist_type: type }).in("id", ids);
+    setBulkBusy(false);
+    if (error) { toast.error("Não foi possível atualizar as playlists", { description: error.message }); return; }
+    toast.success(`${ids.length} playlist${ids.length > 1 ? "s" : ""} marcada${ids.length > 1 ? "s" : ""} como ${type === "CAMPAIGN" ? "Campanha" : "Catálogo"}`);
+    setSelected(new Set());
+    setSelectMode(false);
+    void q.refetch();
+  };
 
   const totals = useMemo(() => {
     const rows = q.data ?? [];
@@ -301,7 +326,59 @@ export function PlaylistsTab() {
         >
           <Copy className="h-3 w-3 mr-1.5" /> Copiar todas ({rows.length})
         </Button>
+        <Button
+          size="sm"
+          variant={selectMode ? "default" : "outline"}
+          className="h-8 rounded-full text-xs ml-auto"
+          onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}
+        >
+          <CheckSquare className="h-3 w-3 mr-1.5" /> {selectMode ? "Sair da seleção" : "Selecionar"}
+        </Button>
       </div>
+
+      {/* Modo seleção — barra de ação em massa (Campanha/Catálogo) */}
+      {selectMode && (
+        <div className="sticky top-0 z-10 flex items-center gap-2 flex-wrap rounded-xl border border-border bg-card p-3">
+          <span className="text-sm font-semibold text-foreground tabular-nums mr-1">
+            {selected.size} selecionada{selected.size === 1 ? "" : "s"}
+          </span>
+          <Button
+            size="sm"
+            className="h-8 rounded-full text-xs font-semibold"
+            disabled={selected.size === 0 || bulkBusy}
+            onClick={() => bulkSetType("CAMPAIGN")}
+          >
+            Marcar como Campanha
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-full text-xs"
+            disabled={selected.size === 0 || bulkBusy}
+            onClick={() => bulkSetType("CATALOG")}
+          >
+            Marcar como Catálogo
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full text-xs"
+            disabled={selected.size === 0 || bulkBusy}
+            onClick={() => setSelected(new Set())}
+          >
+            Limpar seleção
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full text-xs ml-auto"
+            disabled={bulkBusy}
+            onClick={() => { setSelectMode(false); setSelected(new Set()); }}
+          >
+            <X className="h-3.5 w-3.5 mr-1" /> Concluir
+          </Button>
+        </div>
+      )}
 
 
       {/* Mobile: cards ordenados por delivery */}
@@ -311,12 +388,33 @@ export function PlaylistsTab() {
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
+          const isSel = selected.has(r.managed_playlist_id);
           return (
-            <div key={r.managed_playlist_id} className="p-3 flex items-center gap-3 min-w-0">
+            <div
+              key={r.managed_playlist_id}
+              onClick={selectMode ? () => toggleSelect(r.managed_playlist_id) : undefined}
+              className={cn(
+                "p-3 flex items-center gap-3 min-w-0 transition-colors",
+                selectMode && "cursor-pointer",
+                selectMode && isSel && "bg-primary/5",
+              )}
+            >
+              {selectMode && (
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded-md border flex items-center justify-center shrink-0",
+                    isSel ? "bg-primary border-primary" : "border-border",
+                  )}
+                >
+                  {isSel && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                </div>
+              )}
               <Cover url={r.cover_url} alt={r.playlist_name} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  {r.spotify_playlist_id ? (
+                  {selectMode ? (
+                    <span className="font-medium text-sm truncate">{r.playlist_name}</span>
+                  ) : r.spotify_playlist_id ? (
                     <a
                       href={playlistUrl(r.spotify_playlist_id)}
                       target="_blank"
@@ -328,8 +426,8 @@ export function PlaylistsTab() {
                   ) : (
                     <span className="font-medium text-sm truncate">{r.playlist_name}</span>
                   )}
-                  <TypeToggle row={r} onChanged={refetch} />
-                  {r.spotify_playlist_id && (
+                  {!selectMode && <TypeToggle row={r} onChanged={refetch} />}
+                  {!selectMode && r.spotify_playlist_id && (
                     <button
                       type="button"
                       aria-label="Copiar link da playlist"
@@ -372,11 +470,27 @@ export function PlaylistsTab() {
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
+          const isSel = selected.has(r.managed_playlist_id);
           return (
             <div
               key={r.managed_playlist_id}
-              className="group rounded-xl border border-border bg-card p-3 flex flex-col gap-2.5 hover:border-border/80 hover:bg-card/80 transition-colors min-w-0"
+              onClick={selectMode ? () => toggleSelect(r.managed_playlist_id) : undefined}
+              className={cn(
+                "group rounded-xl border border-border bg-card p-3 flex flex-col gap-2.5 hover:border-border/80 hover:bg-card/80 transition-colors min-w-0 relative",
+                selectMode && "cursor-pointer",
+                selectMode && isSel && "border-primary/60 ring-1 ring-primary/40 bg-primary/5",
+              )}
             >
+              {selectMode && (
+                <div
+                  className={cn(
+                    "absolute top-2.5 right-2.5 h-5 w-5 rounded-md border flex items-center justify-center",
+                    isSel ? "bg-primary border-primary" : "border-border bg-background",
+                  )}
+                >
+                  {isSel && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                </div>
+              )}
               {/* Header: capa pequena + nome ao lado */}
               <div className="flex items-start gap-2.5 min-w-0">
                 <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted shrink-0">
@@ -396,7 +510,11 @@ export function PlaylistsTab() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  {r.spotify_playlist_id ? (
+                  {selectMode ? (
+                    <div className="text-sm font-semibold leading-tight line-clamp-2 text-foreground" title={r.playlist_name}>
+                      {r.playlist_name}
+                    </div>
+                  ) : r.spotify_playlist_id ? (
                     <a
                       href={playlistUrl(r.spotify_playlist_id)}
                       target="_blank"
@@ -412,8 +530,8 @@ export function PlaylistsTab() {
                     </div>
                   )}
                 </div>
-                <TypeToggle row={r} onChanged={refetch} />
-                {r.spotify_playlist_id && (
+                {!selectMode && <TypeToggle row={r} onChanged={refetch} />}
+                {!selectMode && r.spotify_playlist_id && (
                   <button
                     type="button"
                     aria-label="Copiar link da playlist"
