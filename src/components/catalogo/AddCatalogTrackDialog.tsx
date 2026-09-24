@@ -588,13 +588,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     return (
       <div className="space-y-2">
         <Label htmlFor="track-input" className="text-[12px]">
-          Spotify URL, URI ou ID (faixa ou álbum) — até {BATCH_MAX} de uma vez
+          Links do Spotify
         </Label>
         <Textarea
           id="track-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={"https://open.spotify.com/track/...\nCole vários links, um por linha"}
+          placeholder="https://open.spotify.com/track/..."
           rows={4}
           autoFocus
           autoComplete="off"
@@ -609,8 +609,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         />
         <div className="text-[11px] text-muted-foreground">
           {count > 1
-            ? `${count} músicas reconhecidas — vai abrir o modo lote (fila, uma por vez).`
-            : "Pode colar a lista inteira com números e nomes junto: só os links do Spotify são aproveitados."}
+            ? `${count} músicas reconhecidas.`
+            : `Faixas ou álbuns, um por linha. Até ${BATCH_MAX} por vez.`}
         </div>
         {parsedAll.overflow > 0 && (
           <div className="text-[11px] text-amber-500">
@@ -842,9 +842,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           {destMode === "campaign" ? "Playlists de campanha" : "Playlists de destino"}
         </div>
         <div className="text-[12px] text-muted-foreground">
-          {destMode === "campaign"
-            ? "Selecione onde a música será adicionada."
-            : "Selecione onde a música será adicionada."}
+          Selecione onde a música será adicionada.
         </div>
       </div>
 
@@ -1054,13 +1052,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
 
   const description =
     step === "idle" || step === "resolving"
-      ? "Cole uma ou várias URLs do Spotify (até 20)."
+      ? "Cadastre faixas do Spotify no catálogo ou em campanhas."
       : step === "batch"
         ? "As músicas entram uma por vez, devagar, para não sobrecarregar o Spotify."
         : step === "metadata"
-          ? "Confirme o gênero antes do preview."
+          ? "Defina o destino e o gênero da música."
           : step === "preview" || step === "previewing" || step === "distributing"
-            ? "Revise o impacto antes de criar os placements."
+            ? "Revise os destinos antes de confirmar."
             : undefined;
 
 
