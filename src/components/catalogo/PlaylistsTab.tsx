@@ -328,6 +328,50 @@ export function PlaylistsTab() {
         </Button>
       </div>
 
+      {/* Modo seleção — barra de ação em massa (Campanha/Catálogo) */}
+      {selectMode && (
+        <div className="sticky top-0 z-10 flex items-center gap-2 flex-wrap rounded-xl border border-border bg-card p-3">
+          <span className="text-sm font-semibold text-foreground tabular-nums mr-1">
+            {selected.size} selecionada{selected.size === 1 ? "" : "s"}
+          </span>
+          <Button
+            size="sm"
+            className="h-8 rounded-full text-xs font-semibold"
+            disabled={selected.size === 0 || bulkBusy}
+            onClick={() => bulkSetType("CAMPAIGN")}
+          >
+            Marcar como Campanha
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-full text-xs"
+            disabled={selected.size === 0 || bulkBusy}
+            onClick={() => bulkSetType("CATALOG")}
+          >
+            Marcar como Catálogo
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full text-xs"
+            disabled={selected.size === 0 || bulkBusy}
+            onClick={() => setSelected(new Set())}
+          >
+            Limpar seleção
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 rounded-full text-xs ml-auto"
+            disabled={bulkBusy}
+            onClick={() => { setSelectMode(false); setSelected(new Set()); }}
+          >
+            <X className="h-3.5 w-3.5 mr-1" /> Concluir
+          </Button>
+        </div>
+      )}
+
 
       {/* Mobile: cards ordenados por delivery */}
       <div className="md:hidden border border-border rounded-2xl overflow-y-auto bg-card divide-y divide-border max-h-[60vh]">
@@ -336,12 +380,33 @@ export function PlaylistsTab() {
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
+          const isSel = selected.has(r.managed_playlist_id);
           return (
-            <div key={r.managed_playlist_id} className="p-3 flex items-center gap-3 min-w-0">
+            <div
+              key={r.managed_playlist_id}
+              onClick={selectMode ? () => toggleSelect(r.managed_playlist_id) : undefined}
+              className={cn(
+                "p-3 flex items-center gap-3 min-w-0 transition-colors",
+                selectMode && "cursor-pointer",
+                selectMode && isSel && "bg-primary/5",
+              )}
+            >
+              {selectMode && (
+                <div
+                  className={cn(
+                    "h-5 w-5 rounded-md border flex items-center justify-center shrink-0",
+                    isSel ? "bg-primary border-primary" : "border-border",
+                  )}
+                >
+                  {isSel && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                </div>
+              )}
               <Cover url={r.cover_url} alt={r.playlist_name} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  {r.spotify_playlist_id ? (
+                  {selectMode ? (
+                    <span className="font-medium text-sm truncate">{r.playlist_name}</span>
+                  ) : r.spotify_playlist_id ? (
                     <a
                       href={playlistUrl(r.spotify_playlist_id)}
                       target="_blank"
@@ -353,7 +418,7 @@ export function PlaylistsTab() {
                   ) : (
                     <span className="font-medium text-sm truncate">{r.playlist_name}</span>
                   )}
-                  <TypeToggle row={r} onChanged={refetch} />
+                  {!selectMode && <TypeToggle row={r} onChanged={refetch} />}
                   {r.spotify_playlist_id && (
                     <button
                       type="button"
