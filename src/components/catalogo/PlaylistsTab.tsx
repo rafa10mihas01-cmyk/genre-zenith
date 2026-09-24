@@ -419,7 +419,7 @@ export function PlaylistsTab() {
                     <span className="font-medium text-sm truncate">{r.playlist_name}</span>
                   )}
                   {!selectMode && <TypeToggle row={r} onChanged={refetch} />}
-                  {r.spotify_playlist_id && (
+                  {!selectMode && r.spotify_playlist_id && (
                     <button
                       type="button"
                       aria-label="Copiar link da playlist"
@@ -462,11 +462,27 @@ export function PlaylistsTab() {
           const pct = r.catalog_capacity > 0 ? Math.min(100, Math.round((r.active_placements / r.catalog_capacity) * 100)) : 0;
           const full = r.available_slots === 0;
           const hasDelivery = r.delivery_7d > 0;
+          const isSel = selected.has(r.managed_playlist_id);
           return (
             <div
               key={r.managed_playlist_id}
-              className="group rounded-xl border border-border bg-card p-3 flex flex-col gap-2.5 hover:border-border/80 hover:bg-card/80 transition-colors min-w-0"
+              onClick={selectMode ? () => toggleSelect(r.managed_playlist_id) : undefined}
+              className={cn(
+                "group rounded-xl border border-border bg-card p-3 flex flex-col gap-2.5 hover:border-border/80 hover:bg-card/80 transition-colors min-w-0 relative",
+                selectMode && "cursor-pointer",
+                selectMode && isSel && "border-primary/60 ring-1 ring-primary/40 bg-primary/5",
+              )}
             >
+              {selectMode && (
+                <div
+                  className={cn(
+                    "absolute top-2.5 right-2.5 h-5 w-5 rounded-md border flex items-center justify-center",
+                    isSel ? "bg-primary border-primary" : "border-border bg-background",
+                  )}
+                >
+                  {isSel && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                </div>
+              )}
               {/* Header: capa pequena + nome ao lado */}
               <div className="flex items-start gap-2.5 min-w-0">
                 <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted shrink-0">
