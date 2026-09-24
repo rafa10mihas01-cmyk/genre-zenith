@@ -502,7 +502,11 @@ export function PlaylistsTab() {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  {r.spotify_playlist_id ? (
+                  {selectMode ? (
+                    <div className="text-sm font-semibold leading-tight line-clamp-2 text-foreground" title={r.playlist_name}>
+                      {r.playlist_name}
+                    </div>
+                  ) : r.spotify_playlist_id ? (
                     <a
                       href={playlistUrl(r.spotify_playlist_id)}
                       target="_blank"
@@ -518,8 +522,8 @@ export function PlaylistsTab() {
                     </div>
                   )}
                 </div>
-                <TypeToggle row={r} onChanged={refetch} />
-                {r.spotify_playlist_id && (
+                {!selectMode && <TypeToggle row={r} onChanged={refetch} />}
+                {!selectMode && r.spotify_playlist_id && (
                   <button
                     type="button"
                     aria-label="Copiar link da playlist"
