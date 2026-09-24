@@ -8,7 +8,7 @@ import { toast } from "sonner";
 // Ocupação fica como informação secundária (drill-down visual).
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ListMusic, TrendingUp, Layers, Copy } from "lucide-react";
+import { ListMusic, TrendingUp, Layers, Copy, CheckSquare, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -216,6 +216,31 @@ export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<"all" | "CATALOG" | "CAMPAIGN">("all");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkSetType = async (type: "CATALOG" | "CAMPAIGN") => {
+    const ids = [...selected];
+    if (ids.length === 0 || bulkBusy) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("managed_playlists").update({ playlist_type: type }).in("id", ids);
+    setBulkBusy(false);
+    if (error) { toast.error("Não foi possível atualizar as playlists", { description: error.message }); return; }
+    toast.success(`${ids.length} playlist${ids.length > 1 ? "s" : ""} marcada${ids.length > 1 ? "s" : ""} como ${type === "CAMPAIGN" ? "Campanha" : "Catálogo"}`);
+    setSelected(new Set());
+    setSelectMode(false);
+    void q.refetch();
+  };
 
   const totals = useMemo(() => {
     const rows = q.data ?? [];
