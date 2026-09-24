@@ -358,7 +358,7 @@ export function PlaylistsTab() {
           </Button>
         ))}
         <Select value={genreFilter} onValueChange={(v) => { setGenreFilter(v); setPage(1); }}>
-          <SelectTrigger className="h-8 w-[190px] rounded-full text-xs">
+          <SelectTrigger className="h-8 w-[190px] rounded-full text-xs capitalize">
             <SelectValue placeholder="Todos os gêneros" />
           </SelectTrigger>
           <SelectContent>
