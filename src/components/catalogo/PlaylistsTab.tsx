@@ -8,18 +8,12 @@ import { toast } from "sonner";
 // Ocupação fica como informação secundária (drill-down visual).
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ListMusic, TrendingUp, Layers, Copy, CheckSquare, Check, X } from "lucide-react";
+import { ListMusic, TrendingUp, Layers, Copy, CheckSquare, Check, X, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { copyLink, copyLinks, playlistUrl } from "@/lib/copyLinks";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 
@@ -237,11 +231,43 @@ function TypeToggle({ row, onChanged }: { row: Row; onChanged: () => void }) {
   );
 }
 
+function GenreChip({
+  active,
+  label,
+  count,
+  capitalize,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  capitalize?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "shrink-0 inline-flex items-center gap-1.5 h-8 rounded-full border px-3 text-xs font-medium transition-colors",
+        capitalize && "capitalize",
+        active
+          ? "border-primary/60 bg-primary/15 text-foreground"
+          : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary",
+      )}
+    >
+      {label}
+      <span className="tabular-nums text-muted-foreground">{count}</span>
+    </button>
+  );
+}
+
 export function PlaylistsTab() {
   const q = useQuery({ queryKey: ["catalog", "playlists-ranking"], queryFn: fetchAll, staleTime: 30_000 });
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState<"all" | "CATALOG" | "CAMPAIGN">("all");
   const [genreFilter, setGenreFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -268,16 +294,19 @@ export function PlaylistsTab() {
     void q.refetch();
   };
 
-  // Lista filtrada — tipo + gênero. É a única lista que a tela usa (cards, cópias, contadores).
+  // Lista filtrada — tipo + gênero + nome. É a única lista que a tela usa (cards, cópias, contadores).
   const rows = useMemo(() => {
     const all = q.data ?? [];
+    const term = search.trim().toLowerCase();
     return all.filter((r) => {
       if (typeFilter !== "all" && r.playlist_type !== typeFilter) return false;
-      if (genreFilter === GENRE_NONE) return !r.genre_id;
-      if (genreFilter !== "all") return r.genre_id === genreFilter;
+      if (genreFilter === GENRE_NONE) {
+        if (r.genre_id) return false;
+      } else if (genreFilter !== "all" && r.genre_id !== genreFilter) return false;
+      if (term && !r.playlist_name.toLowerCase().includes(term)) return false;
       return true;
     });
-  }, [q.data, typeFilter, genreFilter]);
+  }, [q.data, typeFilter, genreFilter, search]);
 
   // Opções do filtro de gênero — derivadas da própria lista, sem nova fonte de dado
   const genreOptions = useMemo(() => {
@@ -347,7 +376,7 @@ export function PlaylistsTab() {
         </div>
       </div>
 
-      {/* Cópia de links — sempre respeita a lista carregada */}
+      {/* Filtros de tipo + busca por nome — a lista carregada sempre respeita o filtro */}
       <div className="flex items-center gap-2 flex-wrap">
         {(["all", "CATALOG", "CAMPAIGN"] as const).map((t) => (
           <Button key={t} size="sm" variant={typeFilter === t ? "default" : "outline"} className="h-8 rounded-full text-xs"
@@ -357,26 +386,15 @@ export function PlaylistsTab() {
               : `Campanha (${allRows.filter((r) => r.playlist_type === "CAMPAIGN").length})`}
           </Button>
         ))}
-        <Select value={genreFilter} onValueChange={(v) => { setGenreFilter(v); setPage(1); }}>
-          <SelectTrigger className="h-8 w-[190px] rounded-full text-xs capitalize">
-            <SelectValue placeholder="Todos os gêneros" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all" className="text-[12px]">
-              Todos os gêneros ({allRows.length})
-            </SelectItem>
-            {genreOptions.items.map((g) => (
-              <SelectItem key={g.id} value={g.id} className="capitalize text-[12px]">
-                {g.name} ({g.count})
-              </SelectItem>
-            ))}
-            {genreOptions.none > 0 && (
-              <SelectItem value={GENRE_NONE} className="text-[12px]">
-                Sem gênero ({genreOptions.none})
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+        <div className="relative ml-auto w-[170px] md:w-[240px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Buscar playlist"
+            className="h-8 rounded-full bg-card pl-9 text-xs"
+          />
+        </div>
         <Button
           size="sm"
           variant="outline"
@@ -411,6 +429,34 @@ export function PlaylistsTab() {
         >
           <CheckSquare className="h-3 w-3 mr-1.5" /> {selectMode ? "Sair da seleção" : "Selecionar"}
         </Button>
+      </div>
+
+      {/* Gênero — filtro em um toque, sempre visível */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 md:flex-wrap md:overflow-visible md:pb-0">
+        <GenreChip
+          active={genreFilter === "all"}
+          label="Todos"
+          count={allRows.length}
+          onClick={() => { setGenreFilter("all"); setPage(1); }}
+        />
+        {genreOptions.items.map((g) => (
+          <GenreChip
+            key={g.id}
+            active={genreFilter === g.id}
+            label={g.name}
+            count={g.count}
+            capitalize
+            onClick={() => { setGenreFilter(g.id); setPage(1); }}
+          />
+        ))}
+        {genreOptions.none > 0 && (
+          <GenreChip
+            active={genreFilter === GENRE_NONE}
+            label="Sem gênero"
+            count={genreOptions.none}
+            onClick={() => { setGenreFilter(GENRE_NONE); setPage(1); }}
+          />
+        )}
       </div>
 
       {/* Modo seleção — barra de ação em massa (Campanha/Catálogo) */}
