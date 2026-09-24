@@ -297,6 +297,31 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const [batchTarget, setBatchTarget] = useState<"genre" | "playlists">("genre");
   const batchStopRef = useRef(false);
 
+  // Destino: Catálogo (normal, sem duplicar) ou Campanha (só playlists de campanha, duplicação permitida)
+  const [destMode, setDestModeState] = useState<"catalog" | "campaign">("catalog");
+  const setDestMode = (m: "catalog" | "campaign") => {
+    setDestModeState(m);
+    setPlSelected([]);
+    if (m === "campaign") setBatchTarget("playlists");
+  };
+  const renderModeToggle = (disabled = false) => (
+    <div className="space-y-1.5">
+      <Label className="text-[12px]">Enviar para</Label>
+      <div className="flex gap-2">
+        <Button type="button" size="sm" disabled={disabled}
+          variant={destMode === "catalog" ? "default" : "outline"}
+          onClick={() => setDestMode("catalog")} className="flex-1 text-[11px]">
+          Catálogo (normal)
+        </Button>
+        <Button type="button" size="sm" disabled={disabled}
+          variant={destMode === "campaign" ? "default" : "outline"}
+          onClick={() => setDestMode("campaign")} className="flex-1 text-[11px]">
+          Campanha
+        </Button>
+      </div>
+    </div>
+  );
+
   const togglePlaylist = (h: PlaylistHit) =>
     setPlSelected((prev) =>
       prev.some((p) => p.id === h.id) ? prev.filter((p) => p.id !== h.id) : [...prev, h],
@@ -312,6 +337,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         .from("managed_playlists")
         .select("id, name, spotify_playlist_id, followers, genre_id")
         .eq("execution_mode", "API_READY")
+        .eq("playlist_type", destMode === "campaign" ? "CAMPAIGN" : "CATALOG")
         .or("operational_status.is.null,operational_status.neq.do_not_operate");
       if (q.length >= 2) query = query.ilike("name", `%${q}%`);
       else if (selectedGenreId) query = query.eq("genre_id", selectedGenreId);
@@ -338,7 +364,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
       if (!cancelled) { setPlHits(hits); setPlLoading(false); }
     }, 350);
     return () => { cancelled = true; clearTimeout(timer); setPlLoading(false); };
-  }, [plQuery, step, resolved?.track?.spotify_track_id, selectedGenreId, batchTarget]);
+  }, [plQuery, step, resolved?.track?.spotify_track_id, selectedGenreId, batchTarget, destMode]);
 
   const doPlaceOnPlaylist = async () => {
     if (plSelected.length === 0 || !resolved?.track?.spotify_track_id) return;
@@ -357,7 +383,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           body: {
             spotify_track_id: resolved.track.spotify_track_id,
             managed_playlist_id: pl.id,
-            allow_duplicate: true,
+            allow_duplicate: destMode === "campaign",
             genre_id: selectedGenreId || null,
             track_meta: {
               track_name: resolved.track.track_name,
@@ -481,7 +507,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               body: {
                 spotify_track_id: it.trackId,
                 managed_playlist_id: pl.id,
-                allow_duplicate: true,
+                allow_duplicate: destMode === "campaign",
                 genre_id: it.genreId ?? null,
                 track_meta: {
                   track_name: it.trackName,
@@ -695,6 +721,9 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               </Select>
             </div>
 
+            {renderModeToggle(batchRunning)}
+
+            {destMode === "catalog" && (
             <div className="flex gap-2">
               <Button
                 type="button"
@@ -717,6 +746,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                 Só playlists escolhidas
               </Button>
             </div>
+            )}
 
             {batchTarget === "playlists" && renderTargetedSend(true)}
 
@@ -753,6 +783,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
             </div>
           </div>
         )}
+
+        {renderModeToggle()}
 
         <div className="space-y-1.5">
           <Label className="text-[12px]">Gênero da música</Label>
@@ -806,9 +838,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     return (
     <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
       <div className="space-y-0.5">
-        <div className="text-[12px] font-medium">Escolher playlists específicas</div>
+        <div className="text-[12px] font-medium">
+          {destMode === "campaign" ? "Escolher playlists de campanha" : "Escolher playlists de catálogo"}
+        </div>
         <div className="text-[11px] text-muted-foreground">
-          Marque quantas quiser na lista abaixo (ou busque pelo nome). Playlists que já têm a música também aparecem — nelas o envio cria uma segunda entrada proposital.
+          {destMode === "campaign"
+            ? "Marque as playlists de campanha que vão receber a música. Se alguma já tiver a música, o envio cria uma segunda entrada proposital."
+            : "Marque quantas quiser (ou busque pelo nome). Playlists que já têm a música ficam bloqueadas — no catálogo não há cópia duplicada."}
         </div>
       </div>
 
@@ -836,12 +872,15 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         {plHits.map((h) => {
           const isSel = plSelected.some((p) => p.id === h.id);
           const sent = plSentIds.includes(h.id);
+          const blocked = destMode === "catalog" && !!h.already_present && !batchMode;
           return (
             <button
               key={h.id}
               type="button"
+              disabled={blocked}
               onClick={() => togglePlaylist(h)}
               className={`w-full text-left px-2.5 py-2 rounded-md border transition-colors ${
+                blocked ? "border-border/40 opacity-50 cursor-not-allowed" :
                 isSel ? "border-primary/50 bg-primary/5" : "border-border/60 hover:bg-muted/40"
               }`}
             >
@@ -920,9 +959,15 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
           </div>
         )}
 
+        {destMode === "campaign" ? (
+          <p className="text-[12px] text-muted-foreground leading-relaxed">
+            Modo <span className="text-foreground font-medium">Campanha</span>: a música só entra nas playlists de campanha que você marcar abaixo.
+          </p>
+        ) : (
+        <>
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Total de playlists do gênero</div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wider leading-tight">Playlists de catálogo do gênero</div>
             <div className="text-xl font-semibold tabular-nums leading-none mt-1">{fmtNum(poolTotal)}</div>
           </div>
           <div className="p-3 rounded-lg bg-muted/30 border border-border/60 min-w-0">
@@ -936,7 +981,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         </div>
 
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de <span className="capitalize text-foreground font-medium">{genreName}</span> no ecossistema. <span className="text-foreground font-medium">{fmtNum(presentCount)}</span> já {presentCount === 1 ? "possui" : "possuem"} esta música; faltam distribuir para <span className="text-foreground font-medium">{fmtNum(distributionCount)}</span>.
+          Existem <span className="text-foreground font-medium">{fmtNum(poolTotal)}</span> playlists de catálogo de <span className="capitalize text-foreground font-medium">{genreName}</span>. As de campanha ficam de fora. <span className="text-foreground font-medium">{fmtNum(presentCount)}</span> já {presentCount === 1 ? "possui" : "possuem"} esta música; faltam distribuir para <span className="text-foreground font-medium">{fmtNum(distributionCount)}</span>.
         </p>
 
         {distributionCount === 0 && (
@@ -946,11 +991,13 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               <div className="font-medium">Nada a distribuir em <span className="capitalize">{genreName}</span>.</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 {poolTotal === 0
-                  ? "Esse gênero não tem playlists cadastradas no ecossistema."
-                  : "Todas as playlists do gênero já possuem esta música."}
+                  ? "Esse gênero não tem playlists de catálogo."
+                  : "Todas as playlists de catálogo do gênero já possuem esta música."}
               </div>
             </div>
           </div>
+        )}
+        </>
         )}
 
         {renderTargetedSend()}
@@ -1088,6 +1135,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               <Button variant="outline" onClick={() => setStep("metadata")} disabled={isBusy} className="gap-2">
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </Button>
+              {destMode === "catalog" && (
               <Button
                 onClick={doDistribute}
                 disabled={isBusy}
@@ -1098,6 +1146,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                   ? "Distribuindo…"
           : `Distribuir para ${preview?.distribution_count ?? preview?.eligible_total ?? 0} ${(preview?.distribution_count ?? preview?.eligible_total ?? 0) === 1 ? "playlist" : "playlists"}`}
               </Button>
+              )}
             </>
           ) : step === "done" ? (
             <>
