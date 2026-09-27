@@ -20,7 +20,7 @@ type Step =
   | "idle" | "resolving" | "metadata" | "previewing" | "preview" | "distributing" | "done" | "error"
   | "batch";
 
-const BATCH_MAX = 20;
+const BATCH_MAX = 70;
 const BATCH_DELAY_MS = 1200;
 
 type BatchStatus = "pending" | "resolving" | "ready" | "sending" | "done" | "error";
@@ -289,7 +289,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const [plSentIds, setPlSentIds] = useState<string[]>([]);
 
   // ———————————————————————————————————————————————
-  // Lote: até 20 links de uma vez, processados em fila
+  // Lote: até 70 links de uma vez, processados em fila
   // ———————————————————————————————————————————————
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
   const [batchRunning, setBatchRunning] = useState(false);
