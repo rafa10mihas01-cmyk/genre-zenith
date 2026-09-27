@@ -1,6 +1,7 @@
 // Catálogo — segunda esteira operacional (paralela a Campanhas).
 // Estrutura igual à página de Clientes: PageHeader com ações no topo,
 // KPIs hero logo abaixo e tabs por último.
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send, Power, Disc3, Megaphone, Users, Repeat } from "lucide-react";
@@ -12,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { KpiBig } from "@/components/KpiBig";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { AddCatalogTrackDialog } from "@/components/catalogo/AddCatalogTrackDialog";
 import { MusicasTab } from "@/components/catalogo/MusicasTab";
 import { PlaylistsTab } from "@/components/catalogo/PlaylistsTab";
 import { EnginePriorityTab } from "@/components/catalogo/EnginePriorityTab";
@@ -183,11 +185,13 @@ export default function Catalogo() {
   const g = telemetryQ.data;
   const pct = s && s.capacity_total > 0 ? Math.round((s.capacity_used / s.capacity_total) * 100) : null;
 
-  const openAdd = () => window.dispatchEvent(new Event("catalogo:add-track"));
+  const [addOpenPage, setAddOpenPage] = useState(false);
+  const openAdd = () => { if (tab === "musicas") window.dispatchEvent(new Event("catalogo:add-track")); else setAddOpenPage(true); };
   const reload = () => qc.invalidateQueries({ queryKey: ["catalog"] });
 
   return (
     <>
+      {tab !== "musicas" && <AddCatalogTrackDialog open={addOpenPage} onOpenChange={setAddOpenPage} onDistributed={() => qc.invalidateQueries({ queryKey: ["catalog"] })} />}
       <PageHeader
         domain="playlists"
         title="Catálogo"
