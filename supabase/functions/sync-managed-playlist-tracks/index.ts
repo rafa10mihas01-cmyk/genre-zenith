@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: pl, error: plErr } = await supabase
     .from("managed_playlists")
-    .select("id, spotify_playlist_id, name, tracks_hash, owner_spotify_user_id, execution_mode, operational_status")
+    .select("id, spotify_playlist_id, name, tracks_hash, owner_spotify_user_id, execution_mode, operational_status, playlist_type")
     .eq("id", playlist_id)
     .maybeSingle();
   if (plErr) return jr({ ok: false, error: plErr.message }, 500);
@@ -353,7 +353,8 @@ Deno.serve(async (req) => {
     // correspondente como `pending` (reason='external_removal') para o
     // catalog-executor redistribuir no próximo ciclo. Nada além disso.
     try {
-      if (toDeleteIds.length > 0) {
+      // Playlists de CAMPANHA: remoção manual é respeitada — nunca reabre o placement.
+      if (toDeleteIds.length > 0 && (pl as any).playlist_type !== "CAMPAIGN") {
         const { data: catalogTracks } = await supabase
           .from("catalog_tracks")
           .select("id, spotify_track_id")
