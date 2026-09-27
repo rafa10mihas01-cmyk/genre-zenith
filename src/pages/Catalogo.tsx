@@ -1,6 +1,7 @@
 // Catálogo — segunda esteira operacional (paralela a Campanhas).
 // Estrutura igual à página de Clientes: PageHeader com ações no topo,
 // KPIs hero logo abaixo e tabs por último.
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Plus, RefreshCw, Music2, Layers, Gauge, CircleSlash, TrendingUp, Activity, Brain, Send, Power, Disc3, Megaphone, Users, Repeat } from "lucide-react";
