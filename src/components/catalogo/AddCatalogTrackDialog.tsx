@@ -340,7 +340,8 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
         .eq("playlist_type", destMode === "campaign" ? "CAMPAIGN" : "CATALOG")
         .or("operational_status.is.null,operational_status.neq.do_not_operate");
       if (q.length >= 2) query = query.ilike("name", `%${q}%`);
-      else if (selectedGenreId) query = query.eq("genre_id", selectedGenreId);
+      // Campanha: mostra TODAS as playlists de Campanha (independe de gênero e de ocupação).
+      else if (selectedGenreId && destMode !== "campaign") query = query.eq("genre_id", selectedGenreId);
       const { data } = await query.order("followers", { ascending: false }).limit(q.length >= 2 ? 30 : 50);
       if (cancelled) return;
       const hits = (data ?? []) as PlaylistHit[];
