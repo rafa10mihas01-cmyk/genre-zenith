@@ -36,6 +36,13 @@
       "when": 1790604982226,
       "tag": "0004_fix_reactivate_catalog_enum_and_authorization",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790611165765,
+      "tag": "0005_scope_playlist_queue_breakers_to_operation",
+      "breakpoints": true
     }
   ]
 }
