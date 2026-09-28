@@ -12312,6 +12312,33 @@ export type Database = {
           },
         ]
       }
+      spotify_account_pauses: {
+        Row: {
+          last_error: string | null
+          paused_at: string
+          paused_until: string
+          reason: string
+          spotify_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          last_error?: string | null
+          paused_at?: string
+          paused_until: string
+          reason: string
+          spotify_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          last_error?: string | null
+          paused_at?: string
+          paused_until?: string
+          reason?: string
+          spotify_user_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spotify_accounts: {
         Row: {
           account_id: string
@@ -13437,6 +13464,9 @@ export type Database = {
           apify_blocked_at: string | null
           apify_blocked_reason: string | null
           auto_deal_from_campaign: boolean
+          campaign_reserved_daily_global: number
+          campaign_reserved_daily_per_app: number
+          campaign_reserved_daily_per_owner: number
           catalog_executor_per_minute_limit: number
           catalog_max_daily_distributions: number
           catalog_max_daily_per_app: number
@@ -13472,6 +13502,9 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          campaign_reserved_daily_global?: number
+          campaign_reserved_daily_per_app?: number
+          campaign_reserved_daily_per_owner?: number
           catalog_executor_per_minute_limit?: number
           catalog_max_daily_distributions?: number
           catalog_max_daily_per_app?: number
@@ -13507,6 +13540,9 @@ export type Database = {
           apify_blocked_at?: string | null
           apify_blocked_reason?: string | null
           auto_deal_from_campaign?: boolean
+          campaign_reserved_daily_global?: number
+          campaign_reserved_daily_per_app?: number
+          campaign_reserved_daily_per_owner?: number
           catalog_executor_per_minute_limit?: number
           catalog_max_daily_distributions?: number
           catalog_max_daily_per_app?: number
@@ -16410,6 +16446,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_spotify_account_paused: { Args: { _uid: string }; Returns: boolean }
       list_campaign_plan_versions_by_token: {
         Args: { p_token: string }
         Returns: {
