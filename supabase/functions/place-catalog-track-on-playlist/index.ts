@@ -89,6 +89,8 @@ Deno.serve(async (req) => {
           genre_id: genreId,
           added_by: userData.user.id,
           status: "active",
+          // Envio direcionado (Campanha/manual) NÃO autoriza distribuição de Catálogo.
+          catalog_distribution_authorized: false,
         })
         .select("id")
         .single();
