@@ -15,6 +15,13 @@
       "when": 1790589973251,
       "tag": "0001_isolate_campaign_from_catalog_distribution",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790590023951,
+      "tag": "0002_guard_legacy_backfill_catalog_authorization",
+      "breakpoints": true
     }
   ]
 }
