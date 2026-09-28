@@ -79,10 +79,34 @@ async function fetchPublicTrackMeta(trackId: string): Promise<PublicTrackMeta | 
     } | null;
     const title = typeof data?.title === "string" ? data.title.trim() : "";
     const separator = title.lastIndexOf(" - ");
-    if (separator <= 0 || separator >= title.length - 3) return null;
+    let trackName = separator > 0 ? title.slice(0, separator).trim() : title;
+    let artistName = separator > 0 ? title.slice(separator + 3).trim() : "";
+    if (!artistName) {
+      const pageResponse = await fetch(canonicalUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; NexEngine/1.0)",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      });
+      if (pageResponse.ok) {
+        const html = await pageResponse.text();
+        const description = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] ?? "";
+        const parts = description
+          .replace(/&amp;/g, "&")
+          .split("·")
+          .map((part) => part.trim())
+          .filter(Boolean);
+        // Formato público atual: "Artistas · Música · Song · Ano".
+        if (parts.length >= 2) {
+          artistName = parts[0];
+          if (!trackName) trackName = parts[1];
+        }
+      }
+    }
+    if (!trackName || !artistName) return null;
     return {
-      track_name: title.slice(0, separator).trim(),
-      artist_name: title.slice(separator + 3).trim(),
+      track_name: trackName,
+      artist_name: artistName,
       cover_url: typeof data?.thumbnail_url === "string" ? data.thumbnail_url : null,
     };
   } catch {
