@@ -8,6 +8,13 @@
       "when": 1790278309176,
       "tag": "0000_catalog_vs_campaign_playlist_split",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790589973251,
+      "tag": "0001_isolate_campaign_from_catalog_distribution",
+      "breakpoints": true
     }
   ]
 }
