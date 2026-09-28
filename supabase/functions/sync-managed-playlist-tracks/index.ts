@@ -87,6 +87,14 @@ Deno.serve(async (req) => {
   // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
+  // Pausa por conta (ex.: dono sem Premium): não chama o Spotify enquanto pausada.
+  if (ownerSpotifyId) {
+    const { data: paused } = await supabase.rpc("is_spotify_account_paused", { _uid: ownerSpotifyId });
+    if (paused === true) {
+      return jr({ ok: true, skipped: true, reason: "account_paused", playlist_id: pl.id });
+    }
+  }
+
   // Contexto de observabilidade: usado para rate limit/circuit breaker por app/owner.
   setSpotifyCtx({
     appId: null,
@@ -416,6 +424,17 @@ Deno.serve(async (req) => {
       }, 503);
     }
     const errMsg = formatPlaylistError(e);
+    const rawMsg = `${errMsg} ${(e as any)?.message ?? ""}`;
+    if (ownerSpotifyId && /premium subscription required/i.test(rawMsg)) {
+      // Conta sem Premium: pausa só essa conta por 6h; depois uma nova tentativa confirma se regularizou.
+      await supabase.from("spotify_account_pauses").upsert({
+        spotify_user_id: ownerSpotifyId,
+        reason: "owner_no_premium",
+        paused_until: new Date(Date.now() + 6 * 3600_000).toISOString(),
+        last_error: rawMsg.slice(0, 300),
+        updated_at: new Date().toISOString(),
+      });
+    }
     if (lock && lock.ok) {
       await finishPlaylistOperation(supabase, lock, {
         status: "failed",
