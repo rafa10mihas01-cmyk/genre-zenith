@@ -188,7 +188,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     setPlSentIds([]);
     setBatchItems([]);
     setBatchRunning(false);
-    setBatchTarget("genre");
+    setBatchTarget("playlists");
     setBatchDone(false);
     batchStopRef.current = false;
   };
@@ -294,7 +294,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
   const [batchRunning, setBatchRunning] = useState(false);
   const [batchDone, setBatchDone] = useState(false);
-  const [batchTarget, setBatchTarget] = useState<"genre" | "playlists">("genre");
+  const [batchTarget, setBatchTarget] = useState<"genre" | "playlists">("playlists");
   const batchStopRef = useRef(false);
 
   // Destino: Catálogo (normal, sem duplicar) ou Campanha (só playlists de campanha, duplicação permitida)
@@ -504,7 +504,15 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     );
     if (queue.length === 0) return;
     if (batchTarget === "playlists" && plSelected.length === 0) {
-      toast.error("Escolha ao menos uma playlist");
+      toast.error("Escolha ao menos uma playlist antes de enviar");
+      return;
+    }
+    if (
+      batchTarget === "genre" &&
+      !window.confirm(
+        `Distribuir ${queue.length} música(s) para TODAS as playlists de Catálogo do gênero? Isso cria centenas de envios por música.`,
+      )
+    ) {
       return;
     }
     batchStopRef.current = false;
