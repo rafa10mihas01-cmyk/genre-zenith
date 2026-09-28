@@ -56,6 +56,40 @@ function normalizeSpotifyGenre(g: string): string {
     .trim();
 }
 
+type PublicTrackMeta = {
+  track_name: string;
+  artist_name: string;
+  cover_url: string | null;
+};
+
+// O endpoint público oEmbed não consome a cota da Web API. Ele mantém o envio
+// manual/Campanha disponível quando o pool de metadados está temporariamente em 429.
+// Não grava no cache canônico porque o oEmbed não fornece popularity/ISRC/artist IDs.
+async function fetchPublicTrackMeta(trackId: string): Promise<PublicTrackMeta | null> {
+  try {
+    const canonicalUrl = `https://open.spotify.com/track/${trackId}`;
+    const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(canonicalUrl)}`;
+    const response = await fetch(oembedUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; NexEngine/1.0)" },
+    });
+    if (!response.ok) return null;
+    const data = await response.json().catch(() => null) as {
+      title?: unknown;
+      thumbnail_url?: unknown;
+    } | null;
+    const title = typeof data?.title === "string" ? data.title.trim() : "";
+    const separator = title.lastIndexOf(" - ");
+    if (separator <= 0 || separator >= title.length - 3) return null;
+    return {
+      track_name: title.slice(0, separator).trim(),
+      artist_name: title.slice(separator + 3).trim(),
+      cover_url: typeof data?.thumbnail_url === "string" ? data.thumbnail_url : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jr({ ok: false, error: "method_not_allowed" }, 405);
@@ -114,6 +148,49 @@ Deno.serve(async (req) => {
     const hydrate = await hydrateTrackSync(trackId, "resolve-catalog-track");
 
     if (!hydrate.ok) {
+      // QUOTA_EXCEEDED não deve bloquear o envio direcionado. O fallback público
+      // devolve somente os metadados necessários; gênero continua manual e a faixa
+      // permanece NÃO autorizada para distribuição automática de Catálogo.
+      if (hydrate.status === 429) {
+        const publicMeta = await fetchPublicTrackMeta(trackId);
+        if (publicMeta) {
+          const sb = createClient(SUPABASE_URL, SERVICE_KEY);
+          const { data: existing } = await sb
+            .from("catalog_tracks")
+            .select("id, genre_id, status, added_at, genres:genre_id(nome)")
+            .eq("spotify_track_id", trackId)
+            .maybeSingle();
+          return jr({
+            ok: true,
+            metadata_source: "spotify_oembed_quota_fallback",
+            track: {
+              spotify_track_id: trackId,
+              spotify_uri: `spotify:track:${trackId}`,
+              track_name: publicMeta.track_name,
+              artist_name: publicMeta.artist_name,
+              isrc: null,
+              cover_url: publicMeta.cover_url,
+              popularity: null,
+              artist_followers: null,
+            },
+            spotify_genres_raw: [],
+            spotify_genres_normalized: [],
+            detected: {
+              suggested_genre_id: null,
+              suggested_genre_name: null,
+              other_matches: [],
+              all_matches: [],
+            },
+            existing: existing ? {
+              catalog_track_id: existing.id,
+              current_genre_id: existing.genre_id,
+              current_genre_name: (existing as any).genres?.nome ?? null,
+              status: existing.status,
+              added_at: existing.added_at,
+            } : null,
+          });
+        }
+      }
       return jr({
         ok: false,
         error: hydrate.error,
