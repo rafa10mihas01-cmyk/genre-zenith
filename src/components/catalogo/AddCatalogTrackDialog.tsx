@@ -460,6 +460,33 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
     }
   };
 
+  const retryBatchIdentification = async () => {
+    const failedItems = batchItems.filter((it) => it.status === "error" && !it.trackId);
+    for (const it of failedItems) {
+      patchItem(it.key, { status: "resolving", error: undefined });
+      try {
+        const { data, error } = await supabase.functions.invoke("resolve-catalog-track", {
+          body: { input: it.raw },
+        });
+        if (error) throw new Error(error.message);
+        const r = data as ResolveResult;
+        if (!r?.ok || !r.track) throw new Error(r?.message ?? r?.error ?? "Falha ao resolver faixa");
+        patchItem(it.key, {
+          status: "ready",
+          trackId: r.track.spotify_track_id,
+          trackName: r.track.track_name,
+          artistName: r.track.artist_name,
+          coverUrl: r.track.cover_url,
+          existing: !!r.existing,
+          genreId: r.detected?.suggested_genre_id ?? r.existing?.current_genre_id ?? undefined,
+        });
+      } catch (e) {
+        patchItem(it.key, { status: "error", error: (e as Error)?.message ?? "Falha ao identificar" });
+      }
+      await sleep(600);
+    }
+  };
+
   const applyGenreToAll = (genreId: string) =>
     setBatchItems((prev) =>
       prev.map((it) => (it.status === "ready" || it.status === "done" ? { ...it, genreId } : it)),
@@ -1099,6 +1126,7 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
               const identifying = batchItems.some((it) => it.status === "pending" || it.status === "resolving");
               const pending = batchItems.filter((it) => (it.status === "ready" || it.status === "error") && it.trackId && it.genreId);
               const failed = batchItems.filter((it) => it.status === "error" && it.trackId && it.genreId);
+               const unidentified = batchItems.filter((it) => it.status === "error" && !it.trackId);
               return (
                 <>
                   <Button variant="outline" onClick={reset} disabled={batchRunning} className="gap-2">
@@ -1107,6 +1135,10 @@ export function AddCatalogTrackDialog({ open, onOpenChange, onDistributed }: Pro
                   {batchRunning ? (
                     <Button variant="destructive" onClick={() => { batchStopRef.current = true; }} className="gap-2">
                       <X className="h-4 w-4" /> Parar fila
+                    </Button>
+                  ) : unidentified.length > 0 ? (
+                    <Button onClick={() => void retryBatchIdentification()} className="gap-2">
+                      <RefreshCw className="h-4 w-4" /> Identificar novamente ({unidentified.length})
                     </Button>
                   ) : batchDone && failed.length > 0 ? (
                     <Button onClick={() => void runBatch(true)} className="gap-2">
