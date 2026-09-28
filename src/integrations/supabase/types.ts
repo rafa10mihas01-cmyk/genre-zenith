@@ -3073,6 +3073,9 @@ export type Database = {
           added_by: string | null
           artist_name: string
           auto_collect_interval_minutes: number
+          catalog_distribution_authorized: boolean
+          catalog_distribution_authorized_at: string | null
+          catalog_distribution_authorized_by: string | null
           cover_url: string | null
           created_at: string
           genre_id: string | null
@@ -3093,6 +3096,9 @@ export type Database = {
           added_by?: string | null
           artist_name: string
           auto_collect_interval_minutes?: number
+          catalog_distribution_authorized?: boolean
+          catalog_distribution_authorized_at?: string | null
+          catalog_distribution_authorized_by?: string | null
           cover_url?: string | null
           created_at?: string
           genre_id?: string | null
@@ -3113,6 +3119,9 @@ export type Database = {
           added_by?: string | null
           artist_name?: string
           auto_collect_interval_minutes?: number
+          catalog_distribution_authorized?: boolean
+          catalog_distribution_authorized_at?: string | null
+          catalog_distribution_authorized_by?: string | null
           cover_url?: string | null
           created_at?: string
           genre_id?: string | null
