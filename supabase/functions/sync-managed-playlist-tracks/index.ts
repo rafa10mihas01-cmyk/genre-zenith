@@ -84,6 +84,11 @@ Deno.serve(async (req) => {
     });
   }
 
+  // HARD STOP: playlists de CAMPANHA não são lidas automaticamente (decisão do operador).
+  if ((pl as any).playlist_type === "CAMPAIGN") {
+    return jr({ ok: true, skipped: true, reason: "campaign_reads_disabled", playlist_id: pl.id });
+  }
+
   // Propaga contexto pras chamadas Spotify deste request (listPlaylistTracksRich etc.)
   const ownerSpotifyId: string | null = (pl as any).owner_spotify_user_id ?? null;
 
