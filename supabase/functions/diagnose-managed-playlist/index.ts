@@ -402,6 +402,11 @@ Deno.serve(async (req) => {
 
 
 
+    // HARD STOP: playlists de CAMPANHA não são lidas/diagnosticadas (decisão do operador).
+    if ((pl as any).playlist_type === "CAMPAIGN") {
+      return jr({ ok: true, skipped: true, reason: "campaign_reads_disabled", playlist_id: pl.id });
+    }
+
     // Lock operacional: impede race com apply-playlist-plan / sync-managed-playlist-tracks.
     // TTL de 30s; liberado no finally.
     const lockResult = await acquirePlaylistLock(supabase, pl.id, "DIAGNOSE_ENGINE", pl.tracks_count ?? null);
