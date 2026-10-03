@@ -179,6 +179,11 @@ Deno.serve(async (req) => {
       }
     }
 
+    // HARD STOP: playlists de CAMPANHA não são lidas automaticamente (decisão do operador).
+    if (Date.now() > 0) {
+      return jr({ ok: true, tier, synced: 0, failed: 0, recalculated: 0, skipped: "campaign_reads_disabled" });
+    }
+
     let q = supabase.from("managed_playlists")
       .select("id, spotify_playlist_id, canonical_playlist_id, name, cover_url, owner_spotify_user_id, execution_mode")
       .eq("playlist_type", "CAMPAIGN");
